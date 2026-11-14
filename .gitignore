@@ -1,0 +1,4 @@
+tools/mediaorg/config.json
+.mediaorg/
+__pycache__/
+.DS_Store

@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Reel Room Jellyfin Setup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a setup manual with a sticky step index on the left (real sequence), a working file-renamer tool inside step 1, and a progress checklist that follows you. Dark-first, projector-booth palette. */
+:root {
+  --bg: #0f1418;
+  --surface: #172027;
+  --surface-2: #1f2b33;
+  --line: #2c3a44;
+  --fg: #e7eef2;
+  --muted: #92a3ad;
+  --accent: #5ec8d8;       /* projector beam cyan */
+  --accent-ink: #062027;
+  --gold: #e8c46a;         /* marquee bulb */
+  --ok: #7ad69b;
+  --warn: #f0a46b;
+  --font-display: "Sora", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r: 12px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f6f7; --surface: #ffffff; --surface-2: #e8eef0; --line: #d2dce0;
+    --fg: #12202a; --muted: #566a75; --accent: #0b7f91; --accent-ink: #ffffff;
+    --gold: #9a6d00; --ok: #1d8648; --warn: #b2531a; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f3f6f7; --surface: #ffffff; --surface-2: #e8eef0; --line: #d2dce0;
+  --fg: #12202a; --muted: #566a75; --accent: #0b7f91; --accent-ink: #ffffff;
+  --gold: #9a6d00; --ok: #1d8648; --warn: #b2531a; color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-body); }
+a { color: var(--accent); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.015em; }
+p { margin: 0; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--font-mono); font-size: 13px; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+
+.page { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; }
+@media (max-width: 900px) { .page { grid-template-columns: 1fr; gap: 24px; padding-block: 24px 56px; } }
+
+/* Hero */
+.hero { grid-column: 1 / -1; display: grid; gap: 14px; padding-bottom: 8px; }
+.eyebrow { font: 600 12px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.hero h1 { font-size: clamp(30px, 5vw, 48px); line-height: 1.08; font-weight: 800; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { color: var(--muted); max-width: 66ch; font-size: 16px; }
+.reel { display: flex; gap: 6px; margin-top: 4px; }
+.reel i { width: 14px; height: 10px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--line); }
+.reel i:nth-child(4n+1) { background: var(--gold); border-color: var(--gold); }
+
+/* Index */
+.index { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start; display: grid; gap: 18px; }
+@media (max-width: 900px) { .index { position: static; } }
+.index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
+.index li a { display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; text-decoration: none; color: var(--muted); font-weight: 500; }
+.index li a::before { counter-increment: s; content: counter(s, decimal-leading-zero); font: 600 12px var(--font-mono); color: var(--accent); }
+.index li a:hover { background: var(--surface); color: var(--fg); }
+.progress { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 8px; }
+.progress b { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.progress small { color: var(--muted); }
+.bar { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--gold)); transition: width .3s; }
+@media (max-width: 900px) { .index ol { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+
+/* Steps */
+.steps { display: grid; gap: 56px; min-width: 0; }
+.step { display: grid; gap: 16px; scroll-margin-top: 20px; min-width: 0; }
+.step-head { display: flex; gap: 14px; align-items: baseline; }
+.step-head .num { font: 700 13px var(--font-mono); color: var(--accent-ink); background: var(--accent); padding: 3px 8px; border-radius: 6px; flex: none; }
+.step-head h2 { font-size: 26px; }
+.lead { color: var(--muted); max-width: 70ch; }
+
+.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.checks label { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; }
+.checks input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--accent); }
+.checks label:has(input:checked) { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.checks label:has(input:checked) > span { color: var(--muted); }
+.checks .path { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card h3 { font-size: 16px; }
+.card p, .card li { color: var(--muted); font-size: 14px; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+.tree { margin: 0; overflow-x: auto; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); font: 13px/1.75 var(--font-mono); color: var(--fg); }
+.tree .d { color: var(--gold); }
+.tree .c { color: var(--muted); }
+
+.codebox { position: relative; }
+.codebox pre { margin: 0; overflow-x: auto; padding: 16px; padding-top: 40px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); font: 12.5px/1.65 var(--font-mono); }
+.codebox .label { position: absolute; top: 10px; left: 16px; font: 600 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.copy { position: absolute; top: 8px; right: 8px; font: 600 12px var(--font-body); padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); cursor: pointer; }
+.copy:hover { border-color: var(--accent); }
+
+.seg { display: inline-flex; padding: 3px; gap: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+.seg button { font: 600 13px var(--font-body); border: 0; background: transparent; color: var(--muted); padding: 6px 12px; border-radius: 7px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* Renamer */
+.tool { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.tool-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.tool-head h3 { font-size: 16px; }
+.tool-head small { color: var(--muted); }
+.tool-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); }
+@media (max-width: 760px) { .tool-body { grid-template-columns: 1fr; } }
+.tool-in { padding: 16px 18px; border-right: 1px solid var(--line); display: grid; gap: 10px; align-content: start; }
+@media (max-width: 760px) { .tool-in { border-right: 0; border-bottom: 1px solid var(--line); } }
+.tool-in label { font-size: 13px; color: var(--muted); }
+.tool-in textarea { width: 100%; min-height: 190px; resize: vertical; font: 12.5px/1.6 var(--font-mono); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.tool-in input[type=text] { width: 100%; font: 13px var(--font-mono); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.tool-out { padding: 16px 18px; display: grid; gap: 12px; min-width: 0; align-content: start; }
+.rows { display: grid; gap: 8px; }
+.row { display: grid; gap: 3px; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); min-width: 0; }
+.row .from { font: 12px var(--font-mono); color: var(--muted); overflow-wrap: anywhere; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 50%, transparent); }
+.row .to { font: 600 13px var(--font-mono); overflow-wrap: anywhere; }
+.row .to .lib { color: var(--gold); }
+.pill { justify-self: start; font: 600 10.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.pill.movie { color: var(--accent); } .pill.episode { color: var(--gold); } .pill.home { color: var(--ok); } .pill.skip { color: var(--warn); }
+.row-top { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.note { font-size: 13px; color: var(--muted); }
+.callout { padding: 14px 16px; border-radius: var(--r); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line)); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); color: var(--fg); font-size: 14px; }
+.callout b { color: var(--gold); }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+td small { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
+</style>
+
+<div class="page">
+  <header class="hero">
+    <div class="eyebrow">Jellyfin · personal library · LAN streaming</div>
+    <h1>Your movies, shows and home videos, <em>on every screen in the house</em></h1>
+    <p>Six steps from a folder of files to a Netflix-style library with cover art, synopses, seasons, genres and search. Everything here is free and open source, and works only with media you own or have the rights to play.</p>
+    <div class="reel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </header>
+
+  <aside class="index">
+    <nav aria-label="Steps">
+      <ol>
+        <li><a href="#folders">Name your files</a></li>
+        <li><a href="#install">Install Jellyfin</a></li>
+        <li><a href="#libraries">Add libraries</a></li>
+        <li><a href="#organize">Categories &amp; search</a></li>
+        <li><a href="#network">Stream on your network</a></li>
+        <li><a href="#clients">Apps for each device</a></li>
+      </ol>
+    </nav>
+    <div class="progress" aria-live="polite">
+      <small>Setup progress</small>
+      <b id="pct">0 / 0</b>
+      <div class="bar"><span id="barfill"></span></div>
+      <small>Ticks are saved in this browser.</small>
+    </div>
+  </aside>
+
+  <main class="steps">
+
+    <!-- 1 -->
+    <section class="step" id="folders">
+      <div class="step-head"><span class="num">01</span><h2>Name your files the way Jellyfin reads them</h2></div>
+      <p class="lead">Jellyfin finds cover art, synopses, cast and genres by matching folder and file names against TheMovieDb. Good names are 90% of a clean library. Keep three separate top-level folders, one per library.</p>
+
+<pre class="tree"><span class="d">Media/</span>
+├── <span class="d">Movies/</span>
+│   ├── <span class="d">Spirited Away (2001)/</span>
+│   │   ├── Spirited Away (2001).mkv
+│   │   ├── Spirited Away (2001).en.srt          <span class="c"># subtitles, language code before .srt</span>
+│   │   └── <span class="d">trailers/</span>                             <span class="c"># extras live in named subfolders</span>
+│   └── <span class="d">The Matrix (1999) [tmdbid-603]/</span>         <span class="c"># optional id = guaranteed match</span>
+│       ├── The Matrix (1999) - 1080p.mkv         <span class="c"># two versions of one film</span>
+│       └── The Matrix (1999) - 2160p.mkv
+├── <span class="d">Shows/</span>
+│   └── <span class="d">Bluey (2018)/</span>
+│       ├── <span class="d">Season 00/</span>                            <span class="c"># specials</span>
+│       ├── <span class="d">Season 01/</span>
+│       │   ├── Bluey (2018) S01E01.mkv
+│       │   └── Bluey (2018) S01E02.mkv
+│       └── <span class="d">Season 02/</span>
+└── <span class="d">Home Videos/</span>
+    └── <span class="d">2023/</span>
+        ├── 2023-07-14 Beach day.mp4
+        └── 2023-12-25 Christmas morning.mov</pre>
+
+      <div class="tool">
+        <div class="tool-head">
+          <h3>Renamer: paste messy filenames, get Jellyfin paths</h3>
+          <small>Runs in your browser. Nothing is uploaded.</small>
+        </div>
+        <div class="tool-body">
+          <div class="tool-in">
+            <label for="names">One filename per line (example files loaded)</label>
+            <textarea id="names" spellcheck="false">The.Matrix.1999.1080p.BluRay.x264.mkv
+Spirited_Away_(2001)_2160p.mkv
+Planet.Earth.II.S01E03.Jungles.1080p.mkv
+bluey 2018 s02e01 dance mode.mp4
+VID_20230714_181205.mp4
+Grandma 80th birthday.mov
+notes.txt</textarea>
+            <label for="root">Media folder on this laptop</label>
+            <input type="text" id="root" value="~/Media" spellcheck="false">
+            <p class="note">Tip: in a terminal, <code>ls</code> (Mac/Linux) or <code>dir /b</code> (Windows) inside a folder prints filenames you can paste here.</p>
+          </div>
+          <div class="tool-out">
+            <div class="rows" id="rows"></div>
+            <div class="row-top">
+              <div class="seg" role="group" aria-label="Script type">
+                <button id="sh-bash" aria-pressed="true">Mac / Linux</button>
+                <button id="sh-ps" aria-pressed="false">Windows PowerShell</button>
+              </div>
+            </div>
+            <div class="codebox">
+              <span class="label" id="scriptlabel">rename.sh · run inside the folder holding the files</span>
+              <button class="copy" data-copy="script">Copy</button>
+              <pre id="script"></pre>
+            </div>
+            <p class="note">Check the guesses before running. Show and film titles come from the filename, so fix any odd capitalisation first. Files with no year or episode number are treated as home videos.</p>
+          </div>
+        </div>
+      </div>
+
+      <ul class="checks">
+        <li><label><input type="checkbox" data-k="f1"><span>Create <code>Movies</code>, <code>Shows</code> and <code>Home Videos</code> folders on a drive with room to grow</span></label></li>
+        <li><label><input type="checkbox" data-k="f2"><span>Move each film into its own <code>Title (Year)</code> folder</span></label></li>
+        <li><label><input type="checkbox" data-k="f3"><span>Put episodes in <code>Show (Year)/Season NN/</code> with <code>SxxEyy</code> in the name</span></label></li>
+      </ul>
+
+      <div class="callout"><b>Content you own.</b> Good sources: discs you bought (copied with a tool like MakeMKV, but check your country's rules on breaking copy protection first), DRM-free purchases, your own camera and phone footage, and public-domain films from the Internet Archive.</div>
+    </section>
+
+    <!-- 2 -->
+    <section class="step" id="install">
+      <div class="step-head"><span class="num">02</span><h2>Install the Jellyfin server</h2></div>
+      <p class="lead">Pick one route. Both end with Jellyfin open in your browser at <code>http://localhost:8096</code>, where a short wizard creates your admin account.</p>
+      <div class="seg" role="group" aria-label="Install method">
+        <button id="in-native" aria-pressed="true">Installer (easiest)</button>
+        <button id="in-docker" aria-pressed="false">Docker</button>
+      </div>
+      <div id="p-native" class="two">
+        <div class="card"><h3>Windows</h3><p>Download the installer from <a href="https://jellyfin.org/downloads/server" target="_blank" rel="noopener">jellyfin.org/downloads</a>. Choose "Install as a service" so it starts with the laptop, even before you log in.</p></div>
+        <div class="card"><h3>macOS</h3><p>Download the <code>.dmg</code>, drag Jellyfin to Applications, open it. Add it to System Settings → General → Login Items so it starts automatically.</p></div>
+        <div class="card"><h3>Linux (Ubuntu / Debian)</h3>
+          <div class="codebox"><span class="label">terminal</span><button class="copy" data-copy="lin">Copy</button><pre id="lin">curl https://repo.jellyfin.org/install-debuntu.sh | sudo bash</pre></div>
+        </div>
+      </div>
+      <div id="p-docker" hidden>
+        <div class="codebox">
+          <span class="label">docker-compose.yml · then run: docker compose up -d</span>
+          <button class="copy" data-copy="compose">Copy</button>
+<pre id="compose">services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    network_mode: host            # Linux: lets TVs discover the server
+    # Docker Desktop on Mac/Windows: delete the line above, use this instead:
+    # ports: ["8096:8096", "7359:7359/udp"]
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ~/Media/Movies:/media/movies:ro
+      - ~/Media/Shows:/media/shows:ro
+      - "~/Media/Home Videos:/media/home:ro"
+    # devices: ["/dev/dri:/dev/dri"]   # Intel/AMD GPU transcoding on Linux
+    restart: unless-stopped</pre>
+        </div>
+      </div>
+      <ul class="checks">
+        <li><label><input type="checkbox" data-k="i1"><span>Jellyfin installed and running</span></label></li>
+        <li><label><input type="checkbox" data-k="i2"><span>Finished the setup wizard and created an admin user with a strong password</span></label></li>
+        <li><label><input type="checkbox" data-k="i3"><span>Set the laptop not to sleep while plugged in<span class="path">Windows: Settings → System → Power. Mac: System Settings → Battery → Options.</span></span></label></li>
+      </ul>
+    </section>
+
+    <!-- 3 -->
+    <section class="step" id="libraries">
+      <div class="step-head"><span class="num">03</span><h2>Add a library for each folder</h2></div>
+      <p class="lead">Go to <b>Dashboard → Libraries → Add Media Library</b>. The content type tells Jellyfin how to read names and which metadata to fetch, so match it to the folder.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Library</th><th>Content type</th><th>Folder</th><th>Settings to switch on</th></tr></thead>
+          <tbody>
+            <tr><td>Movies</td><td>Movies</td><td><code>Media/Movies</code></td><td>Metadata: TheMovieDb first, then The Open Movie Database.<br><small>Turn on "Automatically add to collection" so sequels group into box sets.</small></td></tr>
+            <tr><td>TV Shows</td><td>Shows</td><td><code>Media/Shows</code></td><td>Metadata: TheMovieDb. Tick "Automatically merge series that are spread across multiple folders".<br><small>Season posters and episode stills come with it.</small></td></tr>
+            <tr><td>Home Videos</td><td>Home Videos and Photos</td><td><code>Media/Home Videos</code></td><td>No online metadata. Jellyfin generates thumbnails from the video itself.<br><small>Restrict this library to family accounts in step 4.</small></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="two">
+        <div class="card"><h3>For every library</h3><ul>
+          <li>Preferred language and country: yours, so synopses arrive in your language</li>
+          <li>Enable real-time monitoring, so new files appear within a minute</li>
+          <li>Optional: "Save artwork into media folders" keeps posters next to your files as a backup</li>
+        </ul></div>
+        <div class="card"><h3>If a title matches wrong</h3><ul>
+          <li>Open it → ⋯ → <b>Identify</b>, search the right title, pick it</li>
+          <li>Or add <code>[tmdbid-12345]</code> to the folder name and rescan</li>
+          <li>Find the number in the TheMovieDb page address for the film</li>
+        </ul></div>
+      </div>
+      <ul class="checks">
+        <li><label><input type="checkbox" data-k="l1"><span>Movies library added and scanned</span></label></li>
+        <li><label><input type="checkbox" data-k="l2"><span>Shows library added; seasons and episode titles look right</span></label></li>
+        <li><label><input type="checkbox" data-k="l3"><span>Home Videos library added</span></label></li>
+        <li><label><input type="checkbox" data-k="l4"><span>Fixed any mismatched titles with Identify</span></label></li>
+      </ul>
+    </section>
+
+    <!-- 4 -->
+    <section class="step" id="organize">
+      <div class="step-head"><span class="num">04</span><h2>Categories, collections and search</h2></div>
+      <p class="lead">Most organisation happens automatically once metadata is in. These tools let you shape it the way your household browses.</p>
+      <div class="two">
+        <div class="card"><h3>Genres</h3><p>Filled in from TheMovieDb. Each library has a <b>Genres</b> tab, so "Animation" or "Documentary" is one click away.</p></div>
+        <div class="card"><h3>Collections</h3><p>Select titles → ⋯ → <b>Add to collection</b>. Make your own shelves like "Friday Family Night", "Studio Ghibli" or "Christmas".</p></div>
+        <div class="card"><h3>Tags</h3><p>Open a title → ⋯ → <b>Edit metadata</b> → Tags. Tags power parental filters and custom categories that cut across libraries.</p></div>
+        <div class="card"><h3>Search</h3><p>The magnifier searches titles, actors, directors and genres across every library. It works the same in the apps.</p></div>
+        <div class="card"><h3>Home screen</h3><p>Each user picks their own home rows in <b>Settings → Home</b>: Continue Watching, Next Up, Latest Movies and so on.</p></div>
+        <div class="card"><h3>Profiles</h3><p><b>Dashboard → Users</b>: one account per person keeps watch progress separate. Set a maximum parental rating and choose which libraries each user sees.</p></div>
+      </div>
+      <ul class="checks">
+        <li><label><input type="checkbox" data-k="o1"><span>Created a user for each person in the house</span></label></li>
+        <li><label><input type="checkbox" data-k="o2"><span>Set parental ratings on kids' accounts</span></label></li>
+        <li><label><input type="checkbox" data-k="o3"><span>Built at least one collection of your own</span></label></li>
+      </ul>
+    </section>
+
+    <!-- 5 -->
+    <section class="step" id="network">
+      <div class="step-head"><span class="num">05</span><h2>Stream to other devices on your Wi‑Fi</h2></div>
+      <p class="lead">Every device on the same network can reach the laptop at <code>http://LAPTOP-IP:8096</code>. Find the address, let it through the firewall, and keep it from changing.</p>
+      <div class="seg" role="group" aria-label="Operating system">
+        <button data-os="win" aria-pressed="true">Windows</button>
+        <button data-os="mac" aria-pressed="false">macOS</button>
+        <button data-os="linux" aria-pressed="false">Linux</button>
+      </div>
+      <div class="codebox">
+        <span class="label" id="oslabel">PowerShell</span>
+        <button class="copy" data-copy="oscode">Copy</button>
+        <pre id="oscode"></pre>
+      </div>
+      <div class="two">
+        <div class="card"><h3>Keep the address fixed</h3><p>In your router's admin page, find the laptop under connected devices and choose "DHCP reservation" or "Static lease". Then bookmarks and TV apps keep working.</p></div>
+        <div class="card"><h3>Smooth playback</h3><p><b>Dashboard → Playback → Transcoding</b>: turn on hardware acceleration for your GPU (Intel QSV, NVIDIA NVENC, AMD/Intel VA-API, or Apple VideoToolbox). Use a cable for the laptop if Wi‑Fi stutters on 4K.</p></div>
+        <div class="card"><h3>Let TVs find it</h3><p><b>Dashboard → Networking</b>: leave "Enable auto discovery" on (UDP 7359). Most Jellyfin TV apps then list the server without typing an address.</p></div>
+      </div>
+      <ul class="checks">
+        <li><label><input type="checkbox" data-k="n1"><span>Found the laptop's IP address</span></label></li>
+        <li><label><input type="checkbox" data-k="n2"><span>Opened <code>http://LAPTOP-IP:8096</code> on a phone over Wi‑Fi</span></label></li>
+        <li><label><input type="checkbox" data-k="n3"><span>Reserved the IP in the router</span></label></li>
+        <li><label><input type="checkbox" data-k="n4"><span>Turned on hardware transcoding</span></label></li>
+      </ul>
+      <div class="callout"><b>Home network only.</b> This setup keeps Jellyfin inside your house. Don't forward port 8096 on your router. If you later want access away from home, use a private VPN such as Tailscale or WireGuard instead of exposing the server to the internet.</div>
+    </section>
+
+    <!-- 6 -->
+    <section class="step" id="clients">
+      <div class="step-head"><span class="num">06</span><h2>Install an app on each screen</h2></div>
+      <p class="lead">All free. Sign in with the server address and your user. Watch progress syncs between them, so you can pause on the TV and finish in bed.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Device</th><th>App</th><th>Where to get it</th></tr></thead>
+          <tbody>
+            <tr><td>Any browser</td><td>Built-in web player</td><td><code>http://LAPTOP-IP:8096</code></td></tr>
+            <tr><td>Windows · Mac · Linux</td><td>Jellyfin Media Player</td><td><a href="https://github.com/jellyfin/jellyfin-media-player/releases" target="_blank" rel="noopener">GitHub releases</a><br><small>Plays nearly everything directly, less transcoding</small></td></tr>
+            <tr><td>Android phone</td><td>Jellyfin</td><td>Google Play or F-Droid</td></tr>
+            <tr><td>iPhone · iPad · Apple TV</td><td>Swiftfin, or Jellyfin Mobile</td><td>App Store</td></tr>
+            <tr><td>Android TV · Google TV · Fire TV</td><td>Jellyfin for Android TV</td><td>Play Store or Amazon Appstore</td></tr>
+            <tr><td>Roku</td><td>Jellyfin</td><td>Roku Channel Store</td></tr>
+            <tr><td>LG TV (webOS)</td><td>Jellyfin</td><td>LG Content Store</td></tr>
+            <tr><td>Samsung TV (Tizen)</td><td>Jellyfin</td><td>Sideload from <a href="https://github.com/jellyfin/jellyfin-tizen" target="_blank" rel="noopener">jellyfin-tizen</a><br><small>Not in the Samsung store; needs developer mode</small></td></tr>
+            <tr><td>Kodi box</td><td>Jellyfin for Kodi add-on</td><td><a href="https://jellyfin.org/docs/general/clients/kodi/" target="_blank" rel="noopener">Jellyfin docs</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="checks">
+        <li><label><input type="checkbox" data-k="c1"><span>App installed on the living-room TV</span></label></li>
+        <li><label><input type="checkbox" data-k="c2"><span>App installed on phones and tablets</span></label></li>
+        <li><label><input type="checkbox" data-k="c3"><span>Paused on one device, resumed on another</span></label></li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- Renamer ---------- */
+const VIDEO = /\.(mkv|mp4|m4v|avi|mov|wmv|ts|m2ts|webm|mpg|mpeg|flv|3gp)$/i;
+const SUB = /\.(srt|ass|ssa|vtt|sub)$/i;
+function clean(s) { return s.replace(/[._]+/g, " ").replace(/\s+/g, " ").replace(/[\s\-\[\(]+$/, "").trim(); }
+function titleCase(s) {
+  if (s !== s.toLowerCase()) return s;
+  const small = new Set(["a","an","and","the","of","in","on","at","to","for","or"]);
+  return s.split(" ").map((w, i) => (i && small.has(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+function safe(s) { return s.replace(/[\\/:*?"<>|]/g, "").trim(); }
+const pad = n => String(n).padStart(2, "0");
+
+function parse(file) {
+  const raw = file.trim();
+  if (!raw) return null;
+  const m = raw.match(/^(.*?)(\.[A-Za-z0-9]{2,4})$/);
+  const base = m ? m[1] : raw, ext = m ? m[2].toLowerCase() : "";
+  if (!VIDEO.test(ext) && !SUB.test(ext)) return { raw, type: "skip", reason: "Not a video or subtitle file" };
+  const cb = clean(base);
+  const res = (cb.match(/\b(2160p|1080p|720p|480p|4k)\b/i) || [])[1];
+  const resTag = res ? " - " + (res.toLowerCase() === "4k" ? "2160p" : res.toLowerCase()) : "";
+
+  // Episode: S01E02 or 1x02
+  let e = base.match(/^(.*?)[\s._\-]*[Ss](\d{1,2})[\s._]*[Ee](\d{1,3})(?:[\s._\-]*[Ee](\d{1,3}))?/) ||
+          base.match(/^(.*?)[\s._\-]+(\d{1,2})x(\d{2,3})\b/);
+  if (e) {
+    let show = clean(e[1]); let year = "";
+    const y = show.match(/^(.*?)[\s(\[]*((?:19|20)\d{2})[)\]]?$/);
+    if (y && y[1]) { show = clean(y[1]); year = y[2]; }
+    show = safe(titleCase(show));
+    const name = year ? `${show} (${year})` : show;
+    const se = `S${pad(+e[2])}E${pad(+e[3])}` + (e[4] ? `-E${pad(+e[4])}` : "");
+    return { raw, type: "episode", lib: "Shows", dir: `${name}/Season ${pad(+e[2])}`, file: `${name} ${se}${ext}` };
+  }
+  // Home video from a camera/phone date stamp
+  const d = base.match(/(?:^|[^0-9])(20\d{2}|19\d{2})[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?:[^0-9]|$)/);
+  // Movie: Title YEAR
+  const mv = cb.match(/^(.*?)\s*[(\[]((?:19|20)\d{2})[)\]]/) || cb.match(/^(.*\S)\s+((?:19|20)\d{2})(?:\s|$)/);
+  if (mv && mv[1] && !/^(VID|IMG|PXL|MOV|DSC|GOPR|DJI)/i.test(base)) {
+    const title = safe(titleCase(clean(mv[1])));
+    const name = `${title} (${mv[2]})`;
+    return { raw, type: "movie", lib: "Movies", dir: name, file: `${name}${resTag}${ext}` };
+  }
+  if (d) {
+    const label = clean(clean(base.replace(d[0].replace(/^[^0-9]|[^0-9]$/g, ""), "")).replace(/^(VID|IMG|PXL|MOV|DSC|GOPR|DJI)\b/i, "").replace(/\b\d{6,9}\b/g, ""));
+    const date = `${d[1]}-${d[2]}-${d[3]}`;
+    return { raw, type: "home", lib: "Home Videos", dir: d[1], file: `${date}${label ? " " + safe(titleCase(label)) : ""}${ext}` };
+  }
+  return { raw, type: "home", lib: "Home Videos", dir: "Unsorted", file: `${safe(titleCase(clean(base)))}${ext}` };
+}
+
+let shell = store.get("reel.shell", "bash");
+function q(s, ps) { return ps ? `"${s.replace(/[`"$]/g, "`$&")}"` : `"${s.replace(/(["\\$`])/g, "\\$1")}"`; }
+
+function renderRenamer() {
+  const lines = $("#names").value.split(/\r?\n/).map(parse).filter(Boolean);
+  const root = ($("#root").value.trim() || "~/Media").replace(/[\\/]+$/, "");
+  const label = { movie: "Movie", episode: "Episode", home: "Home video", skip: "Skipped" };
+  $("#rows").innerHTML = lines.map(r => {
+    const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    const to = r.type === "skip" ? `<span class="note">${esc(r.reason)}</span>` : `<span class="lib">${esc(r.lib)}/</span>${esc(r.dir)}/${esc(r.file)}`;
+    return `<div class="row"><div class="row-top"><span class="from">${esc(r.raw)}</span><span class="pill ${r.type}">${label[r.type]}</span></div><div class="to">${to}</div></div>`;
+  }).join("") || `<p class="note">Paste filenames on the left to see where each should go.</p>`;
+
+  const ok = lines.filter(r => r.type !== "skip");
+  const ps = shell === "ps";
+  let out;
+  if (ps) {
+    const R = root.replace(/^~/, "$HOME").replace(/\//g, "\\");
+    out = [`$Root = "${R}"`, ...ok.map(r => {
+      const dir = `$Root\\${r.lib}\\${r.dir.replace(/\//g, "\\")}`;
+      return `New-Item -ItemType Directory -Force -Path "${dir}" | Out-Null\nMove-Item -LiteralPath ${q(r.raw, true)} -Destination "${dir}\\${r.file.replace(/[`"$]/g, "`$&")}"`;
+    })].join("\n");
+  } else {
+    const R = root.replace(/^~/, "$HOME");
+    out = [`ROOT="${R}"`, ...ok.map(r => {
+      const dir = `"$ROOT"/${q(r.lib + "/" + r.dir)}`;
+      return `mkdir -p ${dir} && mv -n -- ${q(r.raw)} ${dir}/${q(r.file)}`;
+    })].join("\n");
+  }
+  $("#script").textContent = ok.length ? out : "# Nothing to move yet";
+  $("#scriptlabel").textContent = ps ? "rename.ps1 · run in PowerShell inside the folder holding the files" : "rename.sh · run inside the folder holding the files";
+  $("#sh-bash").setAttribute("aria-pressed", !ps);
+  $("#sh-ps").setAttribute("aria-pressed", ps);
+}
+$("#names").addEventListener("input", renderRenamer);
+$("#root").addEventListener("input", renderRenamer);
+$("#sh-bash").onclick = () => { shell = "bash"; store.set("reel.shell", shell); renderRenamer(); };
+$("#sh-ps").onclick = () => { shell = "ps"; store.set("reel.shell", shell); renderRenamer(); };
+
+/* ---------- Install toggle ---------- */
+function inst(which) {
+  $("#in-native").setAttribute("aria-pressed", which === "native");
+  $("#in-docker").setAttribute("aria-pressed", which === "docker");
+  $("#p-native").hidden = which !== "native";
+  $("#p-docker").hidden = which !== "docker";
+}
+$("#in-native").onclick = () => inst("native");
+$("#in-docker").onclick = () => inst("docker");
+
+/* ---------- Network OS snippets ---------- */
+const OS = {
+  win: ["PowerShell (run as administrator)", `# 1. Find the laptop's address (look for "IPv4 Address")
+ipconfig
+
+# 2. Allow Jellyfin through the firewall on private networks
+New-NetFirewallRule -DisplayName "Jellyfin" -Direction Inbound -Protocol TCP -LocalPort 8096 -Action Allow -Profile Private
+New-NetFirewallRule -DisplayName "Jellyfin discovery" -Direction Inbound -Protocol UDP -LocalPort 7359 -Action Allow -Profile Private
+
+# 3. Make sure your Wi-Fi is set to "Private network" in Settings → Network & internet`],
+  mac: ["Terminal", `# 1. Find the laptop's address (Wi-Fi)
+ipconfig getifaddr en0
+
+# 2. If the macOS firewall is on, allow incoming connections for Jellyfin
+#    when prompted, or in System Settings → Network → Firewall → Options`],
+  linux: ["Terminal", `# 1. Find the laptop's address
+hostname -I
+
+# 2. If ufw is enabled, open the ports for your home network
+sudo ufw allow 8096/tcp
+sudo ufw allow 7359/udp`]
+};
+function os(k) {
+  document.querySelectorAll("[data-os]").forEach(b => b.setAttribute("aria-pressed", b.dataset.os === k));
+  $("#oslabel").textContent = OS[k][0];
+  $("#oscode").textContent = OS[k][1];
+}
+document.querySelectorAll("[data-os]").forEach(b => b.onclick = () => os(b.dataset.os));
+const guess = /Mac/i.test(navigator.platform) ? "mac" : /Linux/i.test(navigator.platform) && !/Android/i.test(navigator.userAgent) ? "linux" : "win";
+os(guess);
+
+/* ---------- Copy buttons ---------- */
+document.addEventListener("click", async e => {
+  const b = e.target.closest(".copy"); if (!b) return;
+  const el = document.getElementById(b.dataset.copy);
+  try { await navigator.clipboard.writeText(el.textContent); b.textContent = "Copied"; }
+  catch { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Selected, press Ctrl+C"; }
+  setTimeout(() => b.textContent = "Copy", 2000);
+});
+
+/* ---------- Checklist progress ---------- */
+const done = new Set(store.get("reel.done", []));
+const boxes = [...document.querySelectorAll(".checks input")];
+function progress() {
+  const n = boxes.filter(b => b.checked).length;
+  $("#pct").textContent = `${n} / ${boxes.length}`;
+  $("#barfill").style.width = (100 * n / boxes.length) + "%";
+}
+boxes.forEach(b => {
+  b.checked = done.has(b.dataset.k);
+  b.addEventListener("change", () => { b.checked ? done.add(b.dataset.k) : done.delete(b.dataset.k); store.set("reel.done", [...done]); progress(); });
+});
+
+renderRenamer(); progress();
+</script>
+
+</body>
+</html>

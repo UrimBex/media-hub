@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Open Shelf Catalog</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a library card catalogue — filter drawer on top, entries grouped by category like shelf sections, each card carrying a call number built from its category, topic, language and length. Light-first, library-green ink. */
+:root {
+  --bg: #f5f7f4;
+  --surface: #ffffff;
+  --surface-2: #eaefe9;
+  --line: #d3dcd3;
+  --fg: #16231c;
+  --muted: #5b6b61;
+  --accent: #1f6a4c;       /* library green */
+  --accent-ink: #ffffff;
+  --gold: #a87508;         /* brass label */
+  --star: #c98a00;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0f1612; --surface: #16201a; --surface-2: #1f2c24; --line: #2c3b32; --fg: #e6efe8; --muted: #9aada1; --accent: #6fcf9f; --accent-ink: #062016; --gold: #e2b85a; --star: #f2c14e; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0f1612; --surface: #16201a; --surface-2: #1f2c24; --line: #2c3b32; --fg: #e6efe8; --muted: #9aada1; --accent: #6fcf9f; --accent-ink: #062016; --gold: #e2b85a; --star: #f2c14e; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); }
+a { color: var(--accent); }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.top .wrap { padding-block: 36px 20px; display: grid; gap: 12px; }
+.eyebrow { font: 500 12px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(36px, 6vw, 64px); line-height: 1; letter-spacing: -0.02em; font-variation-settings: "opsz" 144; }
+.lede { color: var(--muted); max-width: 64ch; font-size: 16px; }
+.tabs { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.tab { padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; display: inline-flex; gap: 8px; align-items: center; }
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tab .n { font: 500 12px var(--font-mono); opacity: .8; }
+
+.filters { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 93%, transparent); backdrop-filter: blur(10px); border-block: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.filters .wrap { padding-block: 12px; display: grid; gap: 10px; }
+.frow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.flabel { font: 500 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); min-width: 70px; }
+.chip { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 13.5px; font-weight: 500; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.search { flex: 1 1 240px; min-width: 0; }
+.search input, select { width: 100%; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+select { width: auto; max-width: 100%; }
+.reset { border: 0; background: none; color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: underline; }
+
+main .wrap { padding-block: 22px 64px; display: grid; gap: 34px; }
+.resline { color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.shelf { display: grid; gap: 14px; }
+.shelf-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 2px solid var(--fg); padding-bottom: 6px; flex-wrap: wrap; }
+.shelf-head h2 { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
+.shelf-head span { font: 500 12px var(--font-mono); color: var(--muted); }
+.shelf-head p { color: var(--muted); font-size: 14px; flex-basis: 100%; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+@media (max-width: 380px) { .grid { grid-template-columns: 1fr; } }
+
+.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 16px 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card::before { content: ""; position: absolute; top: 0; left: 50%; width: 22px; height: 6px; transform: translateX(-50%); border-radius: 0 0 6px 6px; background: var(--surface-2); }
+.call { font: 500 11px var(--font-mono); letter-spacing: .06em; color: var(--gold); }
+.ctitle { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.card h3 { font-size: 17px; line-height: 1.25; font-weight: 600; }
+.card h3 a { color: var(--fg); text-decoration: none; }
+.card h3 a:hover { color: var(--accent); text-decoration: underline; }
+.src { color: var(--muted); font-size: 13px; }
+.card p.d { font-size: 14px; color: var(--fg); }
+.meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.m { font-size: 12px; padding: 1px 8px; border-radius: 6px; background: var(--surface-2); color: var(--fg); }
+.m.dur { font-family: var(--font-mono); }
+.note { font-size: 12.5px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 8px; }
+.cfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.go { text-decoration: none; font-weight: 600; font-size: 13.5px; padding: 6px 12px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); }
+.go.search-link { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.star { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 17px; line-height: 1; color: var(--muted); flex: none; }
+.star[aria-pressed="true"] { color: var(--star); border-color: var(--star); }
+.watched { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+.watched input { accent-color: var(--accent); width: 16px; height: 16px; }
+.card.done h3 a { text-decoration: line-through; text-decoration-color: var(--muted); }
+
+.empty { padding: 32px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; display: grid; gap: 8px; justify-items: center; }
+.favtools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.addform { display: grid; grid-template-columns: 2fr 2fr 1fr auto; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.addform input, .addform select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+@media (max-width: 720px) { .addform { grid-template-columns: 1fr; } }
+.legal { color: var(--muted); font-size: 13px; max-width: 80ch; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 8px 16px; border-radius: 999px; font-weight: 600; z-index: 20; }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Free · legal · direct to the source</div>
+    <h1>Open Shelf</h1>
+    <p class="lede">A catalogue of free documentaries, lectures, courses, public-domain films and educational channels. Filter by category, topic, language and length, open the original source, and star what you want to keep.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-cat" aria-selected="true">Catalogue <span class="n" id="n-all"></span></button>
+      <button class="tab" role="tab" id="tab-fav" aria-selected="false">★ My favorites <span class="n" id="n-fav"></span></button>
+    </div>
+  </div>
+</header>
+
+<div class="filters" id="filters">
+  <div class="wrap">
+    <div class="frow">
+      <div class="search"><input id="q" type="search" placeholder="Search titles, topics, sources…" aria-label="Search the catalogue" autocomplete="off"></div>
+      <select id="topic" aria-label="Topic"></select>
+      <select id="lang" aria-label="Language"></select>
+      <select id="sort" aria-label="Sort"><option value="cat">Group by category</option><option value="az">A to Z</option><option value="short">Shortest first</option></select>
+    </div>
+    <div class="frow"><span class="flabel">Category</span><div class="frow" id="cats"></div></div>
+    <div class="frow"><span class="flabel">Length</span><div class="frow" id="durs"></div><button class="reset" id="reset" hidden>Clear filters</button></div>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+    <div class="resline"><span id="resline"></span><span>Call number = category · topic · language · length</span></div>
+    <div id="out" style="display:grid;gap:34px"></div>
+
+    <section id="favpanel" hidden style="display:grid;gap:14px">
+      <div class="favtools">
+        <button class="btn" id="copyFav">Copy my list with links</button>
+        <button class="btn" id="randFav">Pick one for me</button>
+        <span style="color:var(--muted);font-size:13px">Favorites are saved in this browser.</span>
+      </div>
+      <form class="addform" id="addform">
+        <input id="ntitle" placeholder="Add your own find: title" required maxlength="120">
+        <input id="nurl" placeholder="https://link to the source" required type="url">
+        <select id="ncat" aria-label="Category"></select>
+        <button class="btn primary">Save</button>
+      </form>
+    </section>
+
+    <p class="legal">Every entry links to the rights holder, a public broadcaster, a university or a public archive. Public-domain films are listed only where the director and writers died more than 70 years ago, so they are free to watch in Kosovo, the EU and the US. A few services limit some videos by country; those cards say so.</p>
+  </div>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const CATS = { doc: ["Documentaries", "Full-length factual films from public broadcasters, archives and official channels."], lecture: ["Lectures & talks", "Recorded public lectures and talks from universities and learned societies."], course: ["Courses", "Structured learning with lessons in order, free to watch."], film: ["Public-domain films", "Classic films anyone can watch and share. Silent films work in any language."], channel: ["Educational channels", "Official channels that publish short explainers every week."] };
+const CODES = { doc: "DOC", lecture: "LEC", course: "CRS", film: "PDF", channel: "EDU" };
+const TOPICS = { science: "Science", space: "Space", nature: "Nature", history: "History", society: "Society & politics", tech: "Technology & coding", math: "Mathematics", economics: "Economics", art: "Art & design", film: "Film history" };
+const LANGS = { en: "English", multi: "Many subtitle languages", none: "No language needed (silent)", es: "Spanish", de: "German", fr: "French" };
+const DURS = { short: ["Under 20 min", 1], mid: ["20–60 min", 2], long: ["Over 60 min", 3], series: ["Series or full course", 4] };
+const AR = q => `https://archive.org/search?query=${encodeURIComponent(q)}&and%5B%5D=mediatype%3A%22movies%22`;
+
+// [id, title, source, cat, topics, langs, dur, durText, description, url, note, isSearchLink]
+const RAW = [
+  ["frontline", "FRONTLINE documentaries", "PBS · GBH", "doc", ["society","history"], ["en"], "long", "~55–110 min each", "Investigative films on politics, war, health and business. Hundreds of full films online.", "https://www.pbs.org/wgbh/frontline/", "Some films are US-only on pbs.org; many full films are also on FRONTLINE's official YouTube channel, which works worldwide."],
+  ["nova", "NOVA", "PBS · GBH", "doc", ["science","nature","space"], ["en"], "long", "~55 min each", "The longest-running science documentary series on TV: physics, archaeology, engineering, medicine.", "https://www.pbs.org/wgbh/nova/", "Full episodes can be US-only; check NOVA's YouTube channel outside the US."],
+  ["dw-doc", "DW Documentary", "Deutsche Welle", "doc", ["society","science","history"], ["en"], "long", "~30–90 min each", "Full documentaries on society, environment, history and technology, published weekly.", "https://www.youtube.com/@DWDocumentary", ""],
+  ["dw-documental", "DW Documental", "Deutsche Welle", "doc", ["society","science","history"], ["es"], "long", "~30–90 min each", "DW documentaries in Spanish.", "https://www.youtube.com/@DWDocumental", ""],
+  ["dw-doku", "DW Doku", "Deutsche Welle", "doc", ["society","science","history"], ["de"], "long", "~30–90 min each", "DW documentaries in German.", "https://www.youtube.com/@DWDoku", ""],
+  ["witness", "Witness", "Al Jazeera English", "doc", ["society"], ["en"], "mid", "~25–47 min each", "Character-led documentaries about ordinary people around the world.", "https://www.aljazeera.com/program/witness/", ""],
+  ["nfb-docs", "NFB documentaries", "National Film Board of Canada", "doc", ["history","society","nature"], ["en","fr"], "long", "Shorts to features", "Thousands of documentaries made since 1939, free to stream.", "https://www.nfb.ca/documentaries/", "A few titles are Canada-only."],
+  ["city-of-gold", "City of Gold (1957)", "National Film Board of Canada", "doc", ["history","film"], ["en"], "mid", "22 min", "The Klondike gold rush told through still photographs. Its camera moves inspired the 'Ken Burns effect'.", "https://www.nfb.ca/film/city_of_gold/", ""],
+  ["nasaplus", "NASA+", "NASA", "doc", ["space","science"], ["en"], "series", "Series and live launches", "Mission documentaries, astronaut series and live coverage, with no ads or sign-up.", "https://plus.nasa.gov", ""],
+  ["esa", "ESA videos", "European Space Agency", "doc", ["space","science"], ["en","multi"], "short", "1–30 min", "Mission films, animations and launch coverage from Europe's space agency.", "https://www.esa.int/ESA_Multimedia/Videos", ""],
+  ["arte", "ARTE documentaries", "ARTE", "doc", ["history","art","society","nature"], ["fr","de","es","multi"], "long", "~50–90 min each", "European documentaries in French, German, English, Spanish, Italian and Polish versions.", "https://www.arte.tv", "Most of the catalogue only plays inside the EU, so many titles won't play in Kosovo."],
+  ["bbcearth", "BBC Earth", "BBC Studios (official YouTube)", "doc", ["nature","science"], ["en"], "short", "3–15 min clips, some full episodes", "Wildlife scenes and science clips from Planet Earth, Blue Planet and more.", "https://www.youtube.com/@bbcearth", ""],
+  ["timeline", "Timeline – World History Documentaries", "Timeline (licensed channel)", "doc", ["history"], ["en"], "long", "~45–90 min each", "Full-length history documentaries from ancient Egypt to the Cold War.", "https://www.youtube.com/@TimelineChannel", ""],
+  ["freedoc", "Free Documentary", "Free Documentary (licensed channel)", "doc", ["nature","history"], ["en"], "long", "~45–50 min each", "Licensed nature and history documentaries posted in full.", "https://www.youtube.com/@FreeDocumentary", ""],
+  ["prelinger", "Prelinger Archives", "Internet Archive", "doc", ["history","film"], ["en"], "short", "Mostly 5–30 min", "Thousands of 20th-century educational, industrial and advertising films, free to watch and reuse.", "https://archive.org/details/prelinger", ""],
+
+  ["trip-moon", "A Trip to the Moon (1902)", "Georges Méliès · Internet Archive", "film", ["film","space"], ["none"], "short", "13 min", "The first science-fiction film, with the rocket landing in the Moon's eye.", AR("A Trip to the Moon 1902 Melies"), "", 1],
+  ["train-robbery", "The Great Train Robbery (1903)", "Edwin S. Porter · Internet Archive", "film", ["film"], ["none"], "short", "12 min", "The western that taught cinema how to cut between places.", AR("The Great Train Robbery 1903"), "", 1],
+  ["caligari", "The Cabinet of Dr. Caligari (1920)", "Robert Wiene · Internet Archive", "film", ["film","art"], ["none"], "long", "76 min", "German Expressionist horror with painted, crooked sets.", AR("The Cabinet of Dr. Caligari 1920"), "", 1],
+  ["nosferatu", "Nosferatu (1922)", "F. W. Murnau · Internet Archive", "film", ["film"], ["none"], "long", "94 min", "The original vampire film, shot on real locations across Germany and Slovakia.", AR("Nosferatu 1922 Murnau"), "", 1],
+  ["nanook", "Nanook of the North (1922)", "Robert Flaherty · Internet Archive", "film", ["film","history","nature"], ["none"], "long", "79 min", "Often called the first feature documentary: an Inuit family's life in northern Quebec.", AR("Nanook of the North 1922"), "", 1],
+  ["potemkin", "Battleship Potemkin (1925)", "Sergei Eisenstein · Internet Archive", "film", ["film","history"], ["none"], "long", "75 min", "The 1905 mutiny and the Odessa Steps, the most studied montage in film history.", AR("Battleship Potemkin 1925"), "", 1],
+  ["movie-camera", "Man with a Movie Camera (1929)", "Dziga Vertov · Internet Archive", "film", ["film","art"], ["none"], "long", "68 min", "A day in Soviet cities with no actors, no story and no intertitles.", AR("Man with a Movie Camera 1929 Vertov"), "", 1],
+  ["neighbours", "Neighbours (1952)", "Norman McLaren · NFB", "film", ["film","art","society"], ["none"], "short", "8 min", "Oscar-winning anti-war fable made with stop-motion people. Free from the NFB.", "https://www.nfb.ca/film/neighbours_voisins/", "Made by the NFB, which streams it free. Not public domain, but free and legal to watch."],
+  ["ia-features", "Feature Films collection", "Internet Archive", "film", ["film"], ["en","none"], "series", "Thousands of films", "Browse the full public-domain feature collection: noir, comedy, horror, westerns.", "https://archive.org/details/feature_films", "Rights vary by country for films from after about 1930. Check each title's page."],
+  ["loc", "National Screening Room", "Library of Congress", "film", ["film","history"], ["en","none"], "series", "Hundreds of films", "Early cinema, newsreels and home movies from the US national library.", "https://www.loc.gov/collections/national-screening-room/", ""],
+
+  ["ted", "TED Talks", "TED", "lecture", ["science","tech","society","art"], ["en","multi"], "short", "5–20 min", "Talks by researchers, artists and builders. Volunteer subtitles in 100+ languages, including Albanian for many talks.", "https://www.ted.com/talks", ""],
+  ["gresham", "Gresham College lectures", "Gresham College, London", "lecture", ["history","science","math","economics"], ["en"], "mid", "~45–60 min each", "Free public lectures, a tradition running since 1597, with a large video archive.", "https://www.gresham.ac.uk", ""],
+  ["ri", "Royal Institution lectures", "Royal Institution", "lecture", ["science"], ["en"], "mid", "~45–60 min each", "Science talks and the Christmas Lectures, held since 1825.", "https://www.youtube.com/@TheRoyalInstitution", ""],
+  ["stanford", "Stanford Online lectures", "Stanford University", "lecture", ["tech","math","science"], ["en"], "series", "Full semester courses", "Recorded university courses including machine learning and computer science.", "https://www.youtube.com/@stanfordonline", ""],
+  ["3b1b", "3Blue1Brown", "Grant Sanderson", "lecture", ["math","tech"], ["en","multi"], "mid", "~15–30 min each", "Animated maths: linear algebra, calculus, neural networks.", "https://www.3blue1brown.com", ""],
+
+  ["khan", "Khan Academy", "Khan Academy (non-profit)", "course", ["math","science","economics","history"], ["en","multi"], "series", "Thousands of short lessons", "Maths from arithmetic to calculus, science, economics and history, with exercises.", "https://www.khanacademy.org", "Free account saves progress."],
+  ["mitocw", "MIT OpenCourseWare", "Massachusetts Institute of Technology", "course", ["math","science","tech","economics"], ["en"], "series", "Full semester courses", "Lecture videos, notes and exams from 2,500+ MIT courses.", "https://ocw.mit.edu", ""],
+  ["yale", "Open Yale Courses", "Yale University", "course", ["history","economics","science","art"], ["en"], "series", "~20–25 lectures per course", "Complete introductory courses, from the American Revolution to game theory.", "https://oyc.yale.edu", ""],
+  ["cs50", "CS50x: Introduction to Computer Science", "Harvard University", "course", ["tech"], ["en","multi"], "series", "~11 weeks", "Harvard's famous intro to programming: C, Python, SQL and web development.", "https://cs50.harvard.edu/x/", "Free to take. Subtitles in many languages."],
+  ["fcc", "freeCodeCamp", "freeCodeCamp (non-profit)", "course", ["tech"], ["en","es"], "series", "Hundreds of hours", "Interactive coding lessons plus full-length video courses on its YouTube channel.", "https://www.freecodecamp.org", "Free account saves progress and certifications."],
+  ["openlearn", "OpenLearn", "The Open University", "course", ["science","history","economics","art","society"], ["en"], "series", "1–24 hours per course", "Hundreds of short university-level courses with a free statement of participation.", "https://www.open.edu/openlearn", "Free account to track progress."],
+  ["coursera", "Coursera (audit mode)", "Universities via Coursera", "course", ["tech","science","economics","society"], ["en","multi"], "series", "4–12 weeks", "Many courses let you watch lectures for free by choosing Audit.", "https://www.coursera.org", "Audit is free but not offered on every course; certificates cost money."],
+  ["crashcourse", "Crash Course", "Complexly", "course", ["history","science","economics","art"], ["en"], "short", "~12 min episodes", "Fast, illustrated series on world history, biology, economics, film and more.", "https://thecrashcourse.com", ""],
+  ["mru", "Marginal Revolution University", "MRU", "course", ["economics"], ["en","multi"], "short", "~5–10 min videos", "Short economics lessons from principles to development economics.", "https://mru.org", ""],
+  ["smarthistory", "Smarthistory", "Smarthistory (non-profit)", "course", ["art","history"], ["en"], "short", "~5–10 min videos", "Conversations in front of artworks, from cave paintings to contemporary art.", "https://smarthistory.org", ""],
+
+  ["kurzgesagt", "Kurzgesagt – In a Nutshell", "Kurzgesagt", "channel", ["science","space"], ["en","de","es","fr"], "short", "~8–15 min", "Animated science explainers, also in German, Spanish, French and other languages.", "https://www.youtube.com/@kurzgesagt", ""],
+  ["veritasium", "Veritasium", "Derek Muller", "channel", ["science","math"], ["en"], "mid", "~15–30 min", "Physics and engineering experiments that challenge intuition.", "https://www.youtube.com/@veritasium", ""],
+  ["numberphile", "Numberphile", "Brady Haran", "channel", ["math"], ["en"], "short", "~10–20 min", "Mathematicians explaining one idea at a time with brown paper and marker.", "https://www.youtube.com/@numberphile", ""],
+  ["scishow", "SciShow", "Complexly", "channel", ["science","nature"], ["en"], "short", "~5–15 min", "Quick answers to science questions and news.", "https://www.youtube.com/@SciShow", ""],
+];
+const ITEMS = RAW.map(r => ({ id: r[0], t: r[1], src: r[2], cat: r[3], topics: r[4], langs: r[5], dur: r[6], durT: r[7], d: r[8], url: r[9], note: r[10], searchLink: !!r[11] }));
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let favs = store.get("shelf.favs", []);           // ids
+let watched = new Set(store.get("shelf.watched", []));
+let custom = store.get("shelf.custom", []);       // {id,t,url,cat}
+let view = "cat", fCat = "all", fDur = "all";
+
+function callNo(it) {
+  const top = (it.topics[0] || "gen").slice(0, 3).toUpperCase();
+  const lang = it.langs.includes("none") ? "SIL" : it.langs.length > 1 ? "MUL" : (it.langs[0] || "en").toUpperCase();
+  const dur = { short: "<20", mid: "20–60", long: "60+", series: "SER" }[it.dur] || "";
+  return `${CODES[it.cat]} · ${top} · ${lang} · ${dur}`;
+}
+function fillSelects() {
+  $("#topic").innerHTML = `<option value="all">All topics</option>` + Object.entries(TOPICS).map(([k, v]) => `<option value="${k}">${v} (${ITEMS.filter(i => i.topics.includes(k)).length})</option>`).join("");
+  $("#lang").innerHTML = `<option value="all">All languages</option>` + Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v} (${ITEMS.filter(i => i.langs.includes(k)).length})</option>`).join("");
+  $("#ncat").innerHTML = Object.entries(CATS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("");
+}
+function chips() {
+  $("#cats").innerHTML = [["all", "All"], ...Object.entries(CATS).map(([k, v]) => [k, v[0]])].map(([k, l]) => `<button class="chip" data-cat="${k}" aria-pressed="${fCat === k}">${l}</button>`).join("");
+  $("#durs").innerHTML = [["all", "Any length"], ...Object.entries(DURS).map(([k, v]) => [k, v[0]])].map(([k, l]) => `<button class="chip" data-dur="${k}" aria-pressed="${fDur === k}">${l}</button>`).join("");
+}
+function card(it) {
+  const fav = favs.includes(it.id), done = watched.has(it.id);
+  return `<article class="card${done ? " done" : ""}">
+    <div class="call">${esc(callNo(it))}</div>
+    <div class="ctitle"><div><h3><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.t)}</a></h3><div class="src">${esc(it.src)}</div></div>
+      <button class="star" data-star="${it.id}" aria-pressed="${fav}" aria-label="${fav ? "Remove from" : "Add to"} favorites">${fav ? "★" : "☆"}</button></div>
+    <p class="d">${esc(it.d)}</p>
+    <div class="meta"><span class="m dur">${esc(it.durT)}</span>${it.topics.map(t => `<span class="m">${TOPICS[t]}</span>`).join("")}${it.langs.map(l => `<span class="m">${LANGS[l].replace(" (silent)", "")}</span>`).join("")}</div>
+    ${it.note ? `<p class="note">${esc(it.note)}</p>` : ""}
+    <div class="cfoot"><a class="go${it.searchLink ? " search-link" : ""}" href="${esc(it.url)}" target="_blank" rel="noopener">${it.searchLink ? "Find on Internet Archive ↗" : "Open source ↗"}</a>
+      ${view === "fav" ? `<label class="watched"><input type="checkbox" data-watch="${it.id}" ${done ? "checked" : ""}> Watched</label>` : ""}</div>
+  </article>`;
+}
+function customCard(c) {
+  return `<article class="card${watched.has(c.id) ? " done" : ""}"><div class="call">${CODES[c.cat]} · MY FIND</div>
+    <div class="ctitle"><div><h3><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.t)}</a></h3><div class="src">${esc(c.url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0])}</div></div>
+      <button class="star" data-delcustom="${c.id}" aria-pressed="true" aria-label="Remove ${esc(c.t)}">★</button></div>
+    <div class="cfoot"><a class="go" href="${esc(c.url)}" target="_blank" rel="noopener">Open source ↗</a><label class="watched"><input type="checkbox" data-watch="${c.id}" ${watched.has(c.id) ? "checked" : ""}> Watched</label></div></article>`;
+}
+function filtered() {
+  const q = $("#q").value.trim().toLowerCase(), tp = $("#topic").value, lg = $("#lang").value;
+  return ITEMS.filter(it => (fCat === "all" || it.cat === fCat) && (fDur === "all" || it.dur === fDur) && (tp === "all" || it.topics.includes(tp)) && (lg === "all" || it.langs.includes(lg))
+    && (!q || [it.t, it.src, it.d, it.durT, ...it.topics.map(t => TOPICS[t]), ...it.langs.map(l => LANGS[l])].join(" ").toLowerCase().includes(q)));
+}
+function render() {
+  $("#n-all").textContent = ITEMS.length;
+  $("#n-fav").textContent = favs.length + custom.length;
+  $("#tab-cat").setAttribute("aria-selected", view === "cat"); $("#tab-fav").setAttribute("aria-selected", view === "fav");
+  $("#filters").hidden = view === "fav"; $("#favpanel").hidden = view !== "fav";
+  const out = $("#out");
+  if (view === "fav") {
+    const list = favs.map(id => ITEMS.find(i => i.id === id)).filter(Boolean);
+    const total = list.length + custom.length, seen = [...list, ...custom].filter(x => watched.has(x.id)).length;
+    $("#resline").textContent = total ? `${total} saved · ${seen} watched` : "";
+    out.innerHTML = total ? `<section class="shelf"><div class="shelf-head"><h2>My favorites</h2><span>${total} saved</span></div><div class="grid">${list.map(card).join("")}${custom.map(customCard).join("")}</div></section>`
+      : `<div class="empty"><b>No favorites yet</b><p>Tap ☆ on any card in the catalogue, or add your own find with the form below.</p><button class="btn primary" data-goto="cat">Browse the catalogue</button></div>`;
+    return;
+  }
+  let list = filtered();
+  const active = fCat !== "all" || fDur !== "all" || $("#topic").value !== "all" || $("#lang").value !== "all" || $("#q").value.trim();
+  $("#reset").hidden = !active;
+  $("#resline").textContent = `${list.length} of ${ITEMS.length} resources`;
+  const sort = $("#sort").value;
+  if (!list.length) { out.innerHTML = `<div class="empty"><b>Nothing matches those filters</b><p>Try another topic or length, or clear the filters.</p><button class="btn" data-reset="1">Clear filters</button></div>`; return; }
+  if (sort === "cat") {
+    out.innerHTML = Object.keys(CATS).map(c => { const l = list.filter(i => i.cat === c); return l.length ? `<section class="shelf"><div class="shelf-head"><h2>${CATS[c][0]}</h2><span>${l.length} ${l.length === 1 ? "entry" : "entries"}</span><p>${CATS[c][1]}</p></div><div class="grid">${l.map(card).join("")}</div></section>` : ""; }).join("");
+  } else {
+    list = [...list].sort(sort === "az" ? (a, b) => a.t.localeCompare(b.t) : (a, b) => DURS[a.dur][1] - DURS[b.dur][1] || a.t.localeCompare(b.t));
+    out.innerHTML = `<section class="shelf"><div class="grid">${list.map(card).join("")}</div></section>`;
+  }
+}
+function toast(m) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 1800); }
+function resetFilters() { fCat = "all"; fDur = "all"; $("#q").value = ""; $("#topic").value = "all"; $("#lang").value = "all"; chips(); render(); }
+
+document.addEventListener("click", async e => {
+  const el = e.target;
+  const s = el.closest("[data-star]");
+  if (s) { const id = s.dataset.star; favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id]; store.set("shelf.favs", favs); toast(favs.includes(id) ? "Saved to favorites" : "Removed from favorites"); render(); return; }
+  const dc = el.closest("[data-delcustom]");
+  if (dc) { custom = custom.filter(c => c.id !== dc.dataset.delcustom); store.set("shelf.custom", custom); toast("Removed"); render(); return; }
+  const c = el.closest("[data-cat]"); if (c) { fCat = c.dataset.cat; chips(); render(); return; }
+  const d = el.closest("[data-dur]"); if (d) { fDur = d.dataset.dur; chips(); render(); return; }
+  if (el.closest("[data-reset]") || el.id === "reset") { resetFilters(); return; }
+  const g = el.closest("[data-goto]"); if (g) { view = g.dataset.goto; render(); return; }
+});
+document.addEventListener("change", e => {
+  const w = e.target.closest("[data-watch]");
+  if (w) { w.checked ? watched.add(w.dataset.watch) : watched.delete(w.dataset.watch); store.set("shelf.watched", [...watched]); render(); }
+});
+$("#tab-cat").onclick = () => { view = "cat"; render(); };
+$("#tab-fav").onclick = () => { view = "fav"; render(); };
+["#q"].forEach(s => $(s).addEventListener("input", render));
+["#topic", "#lang", "#sort"].forEach(s => $(s).addEventListener("change", render));
+$("#addform").addEventListener("submit", e => {
+  e.preventDefault();
+  const t = $("#ntitle").value.trim(), url = $("#nurl").value.trim();
+  if (!t || !/^https?:\/\//.test(url)) { toast("Add a title and a link starting with https://"); return; }
+  custom.push({ id: "c" + Date.now().toString(36), t, url, cat: $("#ncat").value });
+  store.set("shelf.custom", custom); $("#ntitle").value = ""; $("#nurl").value = ""; toast("Saved to favorites"); render();
+});
+$("#copyFav").onclick = async () => {
+  const list = [...favs.map(id => ITEMS.find(i => i.id === id)).filter(Boolean), ...custom];
+  if (!list.length) { toast("Nothing saved yet"); return; }
+  const text = "My Open Shelf favorites\n\n" + list.map(x => `${watched.has(x.id) ? "[x]" : "[ ]"} ${x.t}${x.durT ? " (" + x.durT + ")" : ""}\n    ${x.url}`).join("\n");
+  try { await navigator.clipboard.writeText(text); toast("List copied"); }
+  catch { toast("Copy isn't allowed here. Select the cards' links instead."); }
+};
+$("#randFav").onclick = () => {
+  const pool = [...favs.map(id => ITEMS.find(i => i.id === id)).filter(Boolean), ...custom].filter(x => !watched.has(x.id));
+  const src = pool.length ? pool : ITEMS;
+  const pick = src[Math.floor(Math.random() * src.length)];
+  toast(`Tonight: ${pick.t}`);
+};
+// Start with a few example favorites so the section shows what it does
+if (!store.get("shelf.seeded", false)) { if (!favs.length) favs = ["neighbours", "cs50", "nasaplus"]; store.set("shelf.favs", favs); store.set("shelf.seeded", true); }
+fillSelects(); chips(); render();
+</script>
+
+</body>
+</html>

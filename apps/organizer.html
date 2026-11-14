@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Auto-organiser</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single-column instruction sheet with a before/after table and copyable commands. */
+:root { --bg: #111219; --surface: #1d1f2b; --surface-2: #272a39; --line: #323548; --fg: #eceaf2; --muted: #9a98ad; --accent: #ffb547; --ok: #6fd3a4;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif; --font-body: "Inter", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace; color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root { --bg: #f6f4ef; --surface: #ffffff; --surface-2: #e9e5da; --line: #dcd7cb; --fg: #1d1b26; --muted: #625f70; --accent: #b86a00; --ok: #1f8a5b; color-scheme: light; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-body); }
+.wrap { max-width: 900px; margin: 0 auto; padding: 32px max(16px, env(safe-area-inset-right, 0px)) 60px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 24px; }
+h1 { font: 800 clamp(30px, 5vw, 44px)/1.05 var(--font-display); margin: 0; letter-spacing: -0.02em; }
+h2 { font: 700 21px var(--font-display); margin: 0 0 8px; }
+p { margin: 0; } .muted { color: var(--muted); }
+a { color: var(--accent); }
+.safe { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.safe div { padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.safe b { color: var(--ok); display: block; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td code { font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+tr:last-child td { border-bottom: 0; }
+.cmd { position: relative; }
+.cmd pre { margin: 0; padding: 14px 70px 14px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; font: 13px var(--font-mono); }
+.cmd button { position: absolute; top: 8px; right: 8px; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); cursor: pointer; font: 600 12px var(--font-body); }
+.cmd small { display: block; color: var(--muted); margin-bottom: 4px; }
+.steps { display: grid; gap: 14px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { text-decoration: none; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>Auto-organiser</h1>
+    <p class="muted">A free Python script that sorts movies, TV, music and videos into a clean library, finds duplicates and downloads posters and album covers.</p>
+  </div>
+  <div class="btns">
+    <a class="btn" href="../tools/mediaorg/mediaorg.py" target="_blank" rel="noopener">mediaorg.py</a>
+    <a class="btn" href="../tools/mediaorg/config.example.json" target="_blank" rel="noopener">config.example.json</a>
+    <a class="btn" href="../tools/mediaorg/README.md" target="_blank" rel="noopener">Full README</a>
+  </div>
+  <div class="safe">
+    <div><b>Dry run first</b>Shows the plan. Nothing moves until you add --apply.</div>
+    <div><b>Never deletes</b>Duplicates go to _Review/Duplicates for you to check.</div>
+    <div><b>Never overwrites</b>Name clashes get “ (2)”.</div>
+    <div><b>Undo</b>Every run is logged; --undo puts files back.</div>
+  </div>
+  <section>
+    <h2>What it does to your files</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Type</th><th>Before</th><th>After</th></tr></thead>
+      <tbody>
+        <tr><td>Movie</td><td><code>The.Matrix.1999.1080p.BluRay.x264.mkv</code></td><td><code>Movies/The Matrix (1999)/The Matrix (1999) - 1080p.mkv</code></td></tr>
+        <tr><td>TV episode</td><td><code>bluey 2018 s02e01 dance mode.mp4</code></td><td><code>Shows/Bluey (2018)/Season 02/Bluey (2018) S02E01.mp4</code></td></tr>
+        <tr><td>Subtitle</td><td><code>The.Matrix.1999…x264.en.srt</code></td><td><code>Movies/The Matrix (1999)/The Matrix (1999) - 1080p.en.srt</code></td></tr>
+        <tr><td>Music</td><td><code>Artist/Album/01 - Song.mp3</code></td><td><code>Music/Artist/Album (Year)/01 Song.mp3</code></td></tr>
+        <tr><td>Phone clip</td><td><code>VID_20230714_181205.mp4</code></td><td><code>Home Videos/2023/2023-07-14 VID_20230714_181205.mp4</code></td></tr>
+        <tr><td>Duplicate</td><td>Identical bytes to another file</td><td><code>_Review/Duplicates/</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section class="steps">
+    <h2>Run it</h2>
+    <p class="muted">Install Python 3 from python.org (on Windows, tick “Add python.exe to PATH”). Download the repository, open a terminal in <code>tools/mediaorg</code>, copy <code>config.example.json</code> to <code>config.json</code> and set your <b>inbox</b> and <b>library</b> folders. On Windows type <code>python</code> instead of <code>python3</code>.</p>
+    <div class="cmd"><small>1. See the plan, changes nothing</small><pre>python3 mediaorg.py</pre><button>Copy</button></div>
+    <div class="cmd"><small>2. Do it</small><pre>python3 mediaorg.py --apply</pre><button>Copy</button></div>
+    <div class="cmd"><small>Posters, plots and album covers (TMDb key in config; MusicBrainz needs none)</small><pre>python3 mediaorg.py --apply --metadata</pre><button>Copy</button></div>
+    <div class="cmd"><small>Duplicate report for the whole library</small><pre>python3 mediaorg.py --dupes</pre><button>Copy</button></div>
+    <div class="cmd"><small>Keep sorting new downloads every 15 minutes</small><pre>python3 mediaorg.py --watch 15 --metadata</pre><button>Copy</button></div>
+    <div class="cmd"><small>Optional: read music tags</small><pre>pip install mutagen</pre><button>Copy</button></div>
+  </section>
+</div>
+<script>
+document.querySelectorAll(".cmd button").forEach(b => b.addEventListener("click", async () => {
+  const t = b.parentElement.querySelector("pre").textContent;
+  try { await navigator.clipboard.writeText(t); b.textContent = "Copied"; }
+  catch { const r = document.createRange(); r.selectNodeContents(b.parentElement.querySelector("pre")); getSelection().removeAllRanges(); getSelection().addRange(r); b.textContent = "Selected"; }
+  setTimeout(() => b.textContent = "Copy", 1500);
+}));
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "inbox": [
+    "~/Downloads/Media"
+  ],
+  "library": "~/Media",
+  "folders": {
+    "movies": "Movies",
+    "shows": "Shows",
+    "music": "Music",
+    "home": "Home Videos",
+    "videos": "Videos",
+    "review": "_Review"
+  },
+  "copy_instead_of_move": false,
+  "ignore_smaller_than_mb": 1,
+  "tmdb_api_key": "",
+  "language": "en-US",
+  "musicbrainz_contact": "",
+  "jellyfin_url": "",
+  "jellyfin_api_key": ""
+}

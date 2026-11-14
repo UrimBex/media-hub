@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Free Screens Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a research atlas — condensed headline, country selector as the primary control, filters below, then a card per platform with the same four fields in the same order. Light-first, cobalt ink. */
+:root {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #e9ecf3;
+  --line: #d6dbe6;
+  --fg: #141a2b;
+  --muted: #5a6378;
+  --accent: #2745d4;        /* cobalt */
+  --accent-ink: #ffffff;
+  --none: #1a8a57;          /* no sign-up */
+  --acct: #2e6fd0;          /* free account */
+  --card: #a35a00;          /* library card / licence */
+  --warn: #b23a2e;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1320; --surface: #171c2c; --surface-2: #222a3e; --line: #2d3650; --fg: #e8ebf4; --muted: #9aa3ba;
+    --accent: #8ea2ff; --accent-ink: #0b1030; --none: #6ed9a4; --acct: #8cb8ff; --card: #f0b35e; --warn: #ff8f80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1320; --surface: #171c2c; --surface-2: #222a3e; --line: #2d3650; --fg: #e8ebf4; --muted: #9aa3ba;
+  --accent: #8ea2ff; --accent-ink: #0b1030; --none: #6ed9a4; --acct: #8cb8ff; --card: #f0b35e; --warn: #ff8f80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); }
+a { color: var(--accent); }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.hero .wrap { padding-block: 40px 22px; display: grid; gap: 14px; }
+.eyebrow { font: 500 12px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-stretch: 78%; font-weight: 900; font-size: clamp(40px, 8vw, 88px); line-height: .92; letter-spacing: -0.02em; text-transform: uppercase; }
+h1 span { color: var(--accent); }
+.lede { max-width: 66ch; color: var(--muted); font-size: 16px; }
+
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); border-block: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.controls .wrap { padding-block: 12px; display: grid; gap: 10px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row label { font: 500 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.countries { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.countries::-webkit-scrollbar { display: none; }
+.chip { flex: none; display: inline-flex; gap: 8px; align-items: center; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; font: 600 14px var(--font-body); }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip .cc { font: 500 11px var(--font-mono); opacity: .7; }
+.chip.small { padding: 5px 11px; font-size: 13px; }
+.search { flex: 1 1 220px; min-width: 0; }
+.search input { width: 100%; font: inherit; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+
+main .wrap { padding-block: 24px 64px; display: grid; gap: 28px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.stat { padding: 14px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 2px; }
+.stat b { font: 800 30px/1 var(--font-display); font-stretch: 85%; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.stat.none b { color: var(--none); } .stat.acct b { color: var(--acct); } .stat.card b { color: var(--card); }
+
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.section-head h2 { font: 800 28px var(--font-display); font-stretch: 85%; }
+.section-head p { color: var(--muted); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+@media (max-width: 420px) { .grid { grid-template-columns: 1fr; } }
+.pf { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.pf-top { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+.pf h3 { font: 800 22px/1.1 var(--font-display); font-stretch: 88%; }
+.pf .who { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.open { flex: none; text-decoration: none; font: 600 13px var(--font-body); padding: 6px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
+.open:hover { filter: brightness(1.08); }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.b { font: 500 10.5px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; color: var(--muted); }
+.b.reg-none { color: var(--none); } .b.reg-acct { color: var(--acct); } .b.reg-card { color: var(--card); }
+.fields { display: grid; gap: 10px; margin: 0; }
+.fields div { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 10px; }
+.fields dt { font: 500 11px/1.9 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.fields dd { margin: 0; font-size: 14px; }
+.where { display: flex; gap: 5px; flex-wrap: wrap; }
+.where span { font-size: 12px; padding: 1px 8px; border-radius: 6px; background: var(--surface-2); }
+.check { color: var(--warn); font-size: 13px; }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.note { padding: 16px 18px; border-radius: 14px; border: 1px dashed var(--line); display: grid; gap: 6px; }
+.note h3 { font: 800 18px var(--font-display); font-stretch: 88%; }
+.note p { color: var(--muted); font-size: 14px; }
+.empty { padding: 30px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; }
+.sources { color: var(--muted); font-size: 13px; display: grid; gap: 6px; }
+.sources ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.sources a { overflow-wrap: anywhere; }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Research · checked November 2026</div>
+    <h1>Free Screens <span>Atlas</span></h1>
+    <p class="lede">Official, free and legal ways to watch films, series and documentaries without a monthly subscription. Pick your country to see what works there, what you need to sign up, and the catch with each one.</p>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="wrap">
+    <div class="countries" id="countries" role="group" aria-label="Country"></div>
+    <div class="row">
+      <label>Show</label>
+      <div class="row" id="types" role="group" aria-label="Type"></div>
+      <div class="search"><input id="q" type="search" placeholder="Search: documentaries, kids, anime, Spanish cinema…" aria-label="Search platforms" autocomplete="off"></div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+    <div class="summary" id="summary"></div>
+
+    <section class="xknote" id="xknote" hidden>
+      <div class="note" style="border-style:solid;background:var(--surface)">
+        <h3>What Kosovo has, and what it doesn't</h3>
+        <p>Kosovo has fewer free on-demand film services than EU countries. I found no confirmation that Pluto TV, Tubi, the Roku Channel or Rakuten TV's free section officially serve Kosovo. RTVE Play, BBC iPlayer and most of ARTE are locked to their own countries or to the EU. JustWatch's Kosovo pages do list its new free service, JustWatch TV (beta), so it is worth a look. What works well: live TV from Kosovo and Albanian broadcasters, archives on their official YouTube channels, and worldwide services like the Internet Archive, NFB and NASA+. For any specific film, search JustWatch Kosovo with the Free filter.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2 id="listTitle">Platforms</h2><p id="listSub"></p></div>
+      <div class="grid" id="grid" style="margin-top:14px"></div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Before you press play</h2></div>
+      <div class="notes" style="margin-top:14px">
+        <div class="note"><h3>Free means ads</h3><p>No subscription, but most services show ad breaks similar to broadcast TV. Public broadcasters carry fewer or none.</p></div>
+        <div class="note"><h3>Catalogues rotate</h3><p>Licensed films come and go every month. Public broadcasters keep many programmes for a limited window, often 30 days to a year.</p></div>
+        <div class="note"><h3>Country locks are real</h3><p>Services check where you connect from. Using a VPN to appear in another country breaks most services' terms, so this atlas lists what is officially offered in each country.</p></div>
+        <div class="note"><h3>Free next to paid</h3><p>Rakuten TV, Atresplayer, ITVX, Joyn and others mix free and paid titles. Look for the "Free" or "Gratis" label or filter before pressing play.</p></div>
+      </div>
+    </section>
+
+    <section class="sources">
+      <b style="color:var(--fg)">Sources for recent changes</b>
+      <ul>
+        <li>RTVE Play account requirement and RTVE Play+ abroad: <a href="https://www.xatakahome.com/servicios-de-smart-tv/llegan-cambios-a-rtve-play-a-partir-30-junio-esto-que-tendras-que-hacer-quieres-seguir-viendo-sus-contenidos" target="_blank" rel="noopener">Xataka Home</a>, <a href="https://www.xatakamovil.com/streaming/rtve-play-salta-a-europa-contenido-premium-periodo-prueba-gratis" target="_blank" rel="noopener">Xataka Móvil</a></li>
+        <li>Movistar Plus+ free plan (March 2026): <a href="https://www.formulatv.com/noticias/movistar-plus-lanza-plan-gratuito-136877/" target="_blank" rel="noopener">FormulaTV</a>, <a href="https://senalnews.com/es/digital/movistar-plus-busca-ampliar-audiencias-en-espana-y-lanza-plan-gratuito" target="_blank" rel="noopener">Señal News</a></li>
+        <li>PLATFO public platform for Spanish film: <a href="https://www.lamoncloa.gob.es/serviciosdeprensa/notasprensa/cultura/Paginas/2025/260325-urtasun-presentacion-platfo.aspx" target="_blank" rel="noopener">La Moncloa</a>, <a href="https://www.xatakahome.com/a-fondo/he-probado-platfo-mi-smart-tv-plataforma-gobierno-para-ver-cine-espanol-he-logrado-instalar-apps" target="_blank" rel="noopener">Xataka Home review</a></li>
+        <li>Rakuten TV free channels in 43 European territories: <a href="https://www.advanced-television.com/2026/07/13/rakuten-tv-adds-new-sony-fast-channels/" target="_blank" rel="noopener">Advanced Television</a></li>
+        <li>Tubi in the UK, not yet elsewhere in Europe: <a href="https://www.hollywoodreporter.com/business/business-news/tubi-uk-launch-fox-free-streaming-1235932699/" target="_blank" rel="noopener">The Hollywood Reporter</a></li>
+        <li>Pluto TV in Europe: <a href="https://www.nexttv.com/news/pluto-tv-launches-in-the-nordics" target="_blank" rel="noopener">Next TV</a>, <a href="https://www.3vision.tv/news-insights/fast-channels-in-western-europe-how-samsung-tv-plus-lg-channels-and-connected-tv-platforms-are-outpacing-pluto-tv" target="_blank" rel="noopener">3Vision</a></li>
+      </ul>
+      <p>Kosovo: <a href="https://www.ucl.ac.uk/ssees/library/research-guides/tv-news-eastern-europe/kosovo" target="_blank" rel="noopener">UCL guide to Kosovo TV channels</a> (RTK live stream and YouTube archive), <a href="https://apps.apple.com/xk/app/tv-vala/id6463457795" target="_blank" rel="noopener">TV Vala on the App Store</a>, <a href="https://www.justwatch.com/xk" target="_blank" rel="noopener">JustWatch Kosovo</a>, <a href="https://senalnews.com/en/digital/justwatch-expands-into-streaming-with-new-service-across-11-markets/amp" target="_blank" rel="noopener">JustWatch TV launch markets</a>.</p>
+      <p>Other entries are from the services' own sites and long-standing public information. Availability changes often, so a service's own help page is the final word.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+const COUNTRIES = [
+  ["XK", "Kosovo"], ["ES", "Spain"], ["GB", "United Kingdom"], ["US", "United States"], ["DE", "Germany"], ["FR", "France"], ["IT", "Italy"], ["ALL", "Anywhere online"]
+];
+const TYPES = [["all", "All"], ["public", "Public broadcasters"], ["ads", "Free with ads"], ["live", "Live channels"], ["library", "Library card"]];
+const TYPE_LABEL = { public: "Public broadcaster", ads: "Free with ads", live: "Live channels", library: "Library card", guide: "Where-to-watch guide" };
+// reg: none | acct | card   ·  c: countries
+const P = [
+  // ---------- Shared across countries ----------
+  { n: "Pluto TV", by: "Paramount", url: "https://pluto.tv", c: ["ES","GB","US","DE","FR","IT"], t: ["ads","live"], reg: "none", regTxt: "None. An optional free account saves favourites.",
+    content: "Hundreds of 24-hour themed channels (crime, sci-fi, classic series, anime, reality) plus on-demand films and seasons, dubbed or subtitled locally.",
+    limits: "Ads. Catalogue is mostly older films and series. Line-up differs by country.", where: ["Web","iOS","Android","Smart TVs","Fire TV","Android TV","Roku","Consoles"] },
+  { n: "Rakuten TV (free section)", by: "Rakuten", url: "https://www.rakuten.tv", c: ["ES","GB","DE","FR","IT"], t: ["ads","live"], reg: "none", regTxt: "None for free channels. Free account for some on-demand titles.",
+    content: "Free films and series with ads, plus 500+ free channels in Europe including Rakuten TV Top Movies, Action, Drama and Romance and, since 2026, Sony Pictures channels.",
+    limits: "Free titles sit beside paid rentals; check for the Free/Gratis label. Best on smart TVs.", where: ["Web","Smart TVs","iOS","Android"] },
+  { n: "Plex (free movies & TV)", by: "Plex", url: "https://watch.plex.tv", c: ["XK","ES","GB","US","DE","FR","IT"], chk: { XK: "Plex doesn't publish a country list for Kosovo. It says most free channels work worldwide, so open it and see what plays." }, t: ["ads","live"], reg: "acct", regTxt: "Free Plex account.",
+    content: "Thousands of free films and series plus hundreds of live channels, alongside a guide to what is on other services.",
+    limits: "Ads. Catalogue is larger in the US and English-speaking countries; fewer dubbed titles elsewhere.", where: ["Web","iOS","Android","Smart TVs","Fire TV","Roku","Consoles"] },
+  { n: "Samsung TV Plus", by: "Samsung", url: "https://www.samsungtvplus.com", c: ["ES","GB","US","DE","FR","IT"], t: ["live","ads"], reg: "none", regTxt: "None.",
+    content: "Free live channels (films, news, kids, series) and some on-demand titles.",
+    limits: "Built for Samsung TVs and Galaxy phones. The web player only works in some countries.", where: ["Samsung TVs","Galaxy phones","Web (some countries)"] },
+  { n: "LG Channels", by: "LG", url: "https://www.lg.com/us/lg-channels", c: ["ES","GB","US","DE","FR","IT"], t: ["live","ads"], reg: "none", regTxt: "None.",
+    content: "Free live channels and on-demand films built into LG smart TVs.",
+    limits: "Only on LG smart TVs.", where: ["LG TVs"] },
+
+  // ---------- Kosovo ----------
+  { n: "RTK", by: "Radio Televizioni i Kosovës · public broadcaster", url: "https://www.rtklive.com", c: ["XK"], t: ["public","live"], reg: "none", regTxt: "None.",
+    content: "Live RTK 1–4: news, Kosovo series and documentaries, culture, kids and sport. Past programmes are published on RTK's official YouTube channel.",
+    limits: "Mainly live TV with no on-demand library on the website; use the YouTube channel for catch-up. Some sport is not streamed online.", where: ["Web","YouTube","Phone browser"] },
+  { n: "Klan Kosova", by: "Private broadcaster", url: "https://klankosova.tv", c: ["XK"], t: ["ads","live"], reg: "none", regTxt: "None.",
+    content: "Live channel plus entertainment shows, series and news, with its own phone app.",
+    limits: "Ads. Mostly live TV and the channel's own shows; no film catalogue.", where: ["Web","iOS","Android"] },
+  { n: "TV Vala", by: "Telekom of Kosovo", url: "https://apps.apple.com/xk/app/tv-vala/id6463457795", c: ["XK"], t: ["live"], reg: "acct", regTxt: "Free app download; sign-in needed.",
+    content: "Live TV, catch-up and video on demand from Kosovo's telecom operator.",
+    limits: "The app is free, but most channels and films come with a Vala TV package.", chk: { XK: "Check which channels play without a paid Vala TV package before relying on it." }, where: ["iOS","Android"] },
+  { n: "RTSH", by: "Radio Televizioni Shqiptar · Albanian public broadcaster", url: "https://www.rtsh.al", c: ["XK"], t: ["public","live"], reg: "none", regTxt: "None for live channels on the website.",
+    content: "Albanian public TV: RTSH 1, RTSH 24, RTSH Film, Femije (kids) and more, including classic Albanian films from the national archive.",
+    limits: "Mostly live channels. RTSH Play, the on-demand app, focuses on viewers abroad.", chk: { XK: "Check what streams in Kosovo; Albanian broadcasters sometimes lock films to Albania." }, where: ["Web","iOS","Android"] },
+  { n: "JustWatch Kosovo", by: "JustWatch (search guide)", url: "https://www.justwatch.com/xk", c: ["XK"], t: ["guide"], reg: "none", regTxt: "None.",
+    content: "Search any film or series and see every legal place to watch it in Kosovo. Set the price filter to Free to list only titles you can stream at no cost.",
+    limits: "A search guide, not a player. It links you to the service that has the title.", where: ["Web","iOS","Android"] },
+
+  // ---------- Spain ----------
+  { n: "RTVE Play", by: "RTVE · public broadcaster", url: "https://www.rtve.es/play/", c: ["ES"], t: ["public","live"], reg: "acct", regTxt: "Free account (email and password), required since 30 June 2025.",
+    content: "Spanish series (Cuéntame, El Ministerio del Tiempo, Isabel), Spanish cinema, documentaries, Clan for kids, and live La 1, La 2, 24h and Teledeporte.",
+    limits: "Only works inside Spain. Abroad there is RTVE Play+, a separate paid service for Europe and the Americas. Some titles expire.", where: ["Web","iOS","Android","Smart TVs","Fire TV","Android TV"] },
+  { n: "Atresplayer (free tier)", by: "Atresmedia", url: "https://www.atresplayer.com", c: ["ES"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Live Antena 3, laSexta, Neox and Nova, plus recent episodes of their series and shows.",
+    limits: "Ads. Premium series, the full back catalogue and early releases need Atresplayer Premium (paid).", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "Mitele", by: "Mediaset España", url: "https://www.mitele.es", c: ["ES"], t: ["ads","live"], reg: "none", regTxt: "None for live TV and most shows. Free account for extras.",
+    content: "Live Telecinco, Cuatro, FDF, Divinity, Energy and Boing, plus catch-up of their programmes.",
+    limits: "Ads. Mitele PLUS (paid) adds previews and exclusive content. Spain only.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "Movistar Plus+ Plan Gratuito", by: "Telefónica", url: "https://www.movistarplus.es", c: ["ES"], t: ["ads","live"], reg: "acct", regTxt: "Free account: name, email, password. No card needed.",
+    content: "Launched March 2026. Original shows (Ilustres ignorantes, Leo Talks), football magazine shows and match analysis, and the 24-hour Cero! channel.",
+    limits: "No film catalogue, no paid series and no live sport. Works for customers of any operator.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "PLATFO", by: "Ministry of Culture (ICAA)", url: "https://www.lamoncloa.gob.es/serviciosdeprensa/notasprensa/cultura/Paginas/2025/260325-urtasun-presentacion-platfo.aspx", c: ["ES"], t: ["public"], reg: "none", regTxt: "None.",
+    content: "Public platform for Spanish film: historic Filmoteca collections, promotional content for new Spanish films, and a search that shows where any Spanish film is legally available.",
+    limits: "Still a beta. Small catalogue; many current titles are trailers. Link goes to the official announcement.", where: ["Web","Smart TVs"] },
+  { n: "3Cat", by: "Catalan public broadcaster", url: "https://www.3cat.cat", c: ["ES"], t: ["public","live"], reg: "acct", regTxt: "Free account for some features.",
+    content: "TV3 series, documentaries, kids' shows (SX3) and live channels, mostly in Catalan with subtitles.",
+    limits: "Some films and sport are locked to Spain. Other regional broadcasters (EITB, À Punt, Canal Sur, Telemadrid) offer similar free apps.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "Tivify (free plan)", by: "Tivify", url: "https://www.tivify.tv", c: ["ES"], t: ["live"], reg: "acct", regTxt: "Free account.",
+    content: "Spanish free-to-air channels in one app, plus extra free themed channels.",
+    limits: "Recording, restart and extra channels are in paid plans.", where: ["Web","iOS","Android","Smart TVs","Android TV"] },
+
+  // ---------- UK ----------
+  { n: "BBC iPlayer", by: "BBC · public broadcaster", url: "https://www.bbc.co.uk/iplayer", c: ["GB"], t: ["public","live"], reg: "card", regTxt: "Free BBC account, and a TV licence is legally required.",
+    content: "BBC drama, comedy, natural history (Planet Earth), Storyville documentaries, films and all live BBC channels, with no ads.",
+    limits: "UK only. Many programmes leave after 30 days; box sets usually stay for a year.", where: ["Web","iOS","Android","Smart TVs","Fire TV","Roku","Consoles"] },
+  { n: "ITVX", by: "ITV", url: "https://www.itv.com", c: ["GB"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "ITV dramas, a large film library, US imports, and live ITV channels.",
+    limits: "Ads. ITVX Premium (paid) removes ads and adds BritBox titles.", where: ["Web","iOS","Android","Smart TVs","Fire TV","Roku"] },
+  { n: "Channel 4", by: "Channel 4 · public service", url: "https://www.channel4.com", c: ["GB"], t: ["public","ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Channel 4 and E4 series, Film4 films, documentaries and Walter Presents foreign-language drama.",
+    limits: "Ads. UK only.", where: ["Web","iOS","Android","Smart TVs","Fire TV","Roku"] },
+  { n: "5", by: "Channel 5 (formerly My5)", url: "https://www.channel5.com", c: ["GB"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Channel 5 dramas, history and true-crime documentaries, and kids' shows (Milkshake!).",
+    limits: "Ads. UK only.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "U", by: "UKTV (formerly UKTV Play)", url: "https://u.co.uk", c: ["GB"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Comedy and factual from Dave, Drama, W, Yesterday and Alibi.",
+    limits: "Ads. UK only.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "Tubi", by: "Fox", url: "https://tubitv.com", c: ["GB","US"], t: ["ads"], reg: "none", regTxt: "None. A free account saves progress.",
+    content: "The largest free on-demand catalogue: Hollywood and indie films, series, anime and documentaries. 20,000+ titles in the UK, far more in the US.",
+    limits: "Ads. In Europe only the UK has Tubi so far.", where: ["Web","iOS","Android","Smart TVs","Fire TV","Roku","Consoles"] },
+  { n: "STV Player", by: "STV", url: "https://player.stv.tv", c: ["GB"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "STV and ITV programmes plus a box-set library, available UK-wide.",
+    limits: "Ads. UK only.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+
+  // ---------- US ----------
+  { n: "The Roku Channel", by: "Roku", url: "https://therokuchannel.roku.com", c: ["US"], t: ["ads","live"], reg: "acct", regTxt: "Free Roku account on some devices; much plays on the web without one.",
+    content: "Free films, Roku Originals, series and 500+ live channels.",
+    limits: "Ads.", where: ["Web","Roku","iOS","Android","Fire TV","Smart TVs"] },
+  { n: "Kanopy", by: "via public libraries & universities", url: "https://www.kanopy.com", c: ["US"], t: ["library"], reg: "card", regTxt: "Library card or university login.",
+    content: "Criterion Collection, A24, indie, world cinema, Great Courses and thousands of documentaries, with no ads.",
+    limits: "Your library sets a monthly limit of play credits. Not every library takes part.", where: ["Web","iOS","Android","Roku","Fire TV","Apple TV"] },
+  { n: "Hoopla", by: "via public libraries", url: "https://www.hoopladigital.com", c: ["US"], t: ["library"], reg: "card", regTxt: "Library card.",
+    content: "Films, TV episodes, music albums, audiobooks and comics.",
+    limits: "Monthly borrow limit set by your library.", where: ["Web","iOS","Android","Roku","Fire TV","Apple TV"] },
+  { n: "PBS", by: "Public Broadcasting Service", url: "https://www.pbs.org/video/", c: ["US"], t: ["public","live"], reg: "none", regTxt: "None for current episodes.",
+    content: "NOVA, Frontline, Nature, American Experience, Masterpiece and Ken Burns films, plus live local PBS stations.",
+    limits: "Older episodes need PBS Passport, which comes with a donation to your local station.", where: ["Web","iOS","Android","Roku","Fire TV","Smart TVs"] },
+  { n: "Xumo Play", by: "Comcast & Charter", url: "https://play.xumo.com", c: ["US"], t: ["ads","live"], reg: "none", regTxt: "None.",
+    content: "Hundreds of free live channels and on-demand films.",
+    limits: "Ads.", where: ["Web","iOS","Android","Smart TVs","Roku"] },
+  { n: "Sling Freestream", by: "Sling TV", url: "https://www.sling.com/freestream", c: ["US"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Free live channels and on-demand films and series.",
+    limits: "Ads. Paid Sling plans are promoted throughout.", where: ["Web","iOS","Android","Roku","Fire TV","Smart TVs"] },
+  { n: "YouTube free movies", by: "YouTube", url: "https://www.youtube.com/feed/storefront", c: ["US"], t: ["ads"], reg: "none", regTxt: "None. Some titles need age verification.",
+    content: "A rotating shelf of full-length films free with ads, next to titles for rent.",
+    limits: "Ads. Small, changing selection.", where: ["Web","iOS","Android","Smart TVs","Consoles"] },
+
+  // ---------- Germany ----------
+  { n: "ARD Mediathek", by: "ARD · public broadcaster", url: "https://www.ardmediathek.de", c: ["DE"], t: ["public","live"], reg: "none", regTxt: "None. Optional account for watchlists.",
+    content: "Tatort, German and international series, films, documentaries and all ARD live channels, with no ads.",
+    limits: "Programmes leave after their licence window. Some films and sport are locked to Germany.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "ZDF", by: "ZDF · public broadcaster", url: "https://www.zdf.de", c: ["DE"], t: ["public","live"], reg: "none", regTxt: "None.",
+    content: "ZDF series and crime dramas, Terra X documentaries, films and live channels.",
+    limits: "Time-limited availability; some content locked to Germany.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "3sat", by: "ZDF, ORF, SRG, ARD", url: "https://www.3sat.de", c: ["DE"], t: ["public"], reg: "none", regTxt: "None.",
+    content: "Culture, science documentaries, arthouse film and theatre from Germany, Austria and Switzerland.",
+    limits: "Time-limited availability.", where: ["Web","Smart TVs"] },
+  { n: "Joyn (free)", by: "ProSiebenSat.1", url: "https://www.joyn.de", c: ["DE"], t: ["ads","live"], reg: "none", regTxt: "None for most free content. Free account for some titles.",
+    content: "Live ProSieben, Sat.1, Kabel Eins and many more channels, plus series and shows on demand.",
+    limits: "Ads. Joyn PLUS+ (paid) unlocks more and HD.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "Netzkino", by: "Netzkino", url: "https://www.netzkino.de", c: ["DE"], t: ["ads"], reg: "none", regTxt: "None.",
+    content: "Thousands of free German-language films: thrillers, action, horror, comedies and classics.",
+    limits: "Ads. Mostly older or lesser-known titles.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "filmfriend", by: "via public libraries", url: "https://www.filmfriend.de", c: ["DE"], t: ["library"], reg: "card", regTxt: "Library card from a participating library.",
+    content: "Curated arthouse films, documentaries and kids' films, with no ads.",
+    limits: "Only if your library subscribes.", where: ["Web","iOS","Android","Smart TVs"] },
+
+  // ---------- France ----------
+  { n: "france.tv", by: "France Télévisions · public", url: "https://www.france.tv", c: ["FR"], t: ["public","live"], reg: "acct", regTxt: "Free account.",
+    content: "France 2, 3, 4, 5 series, films, documentaries, Okoo for kids, and live channels.",
+    limits: "Ads on some programmes. Time-limited availability; mostly France only.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "TF1+", by: "Groupe TF1", url: "https://www.tf1.fr", c: ["FR"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Live TF1, TMC, TFX, LCI channels, series, films and a free catalogue on demand.",
+    limits: "Ads. France only.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "M6+", by: "Groupe M6", url: "https://www.m6.fr", c: ["FR"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Live M6, W9, 6ter and more, plus series, films and shows on demand.",
+    limits: "Ads. Some content in a paid tier.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "Médiathèque numérique", by: "ARTE & UniversCiné via libraries", url: "https://www.mediatheque-numerique.com", c: ["FR"], t: ["library"], reg: "card", regTxt: "Library card from a participating library.",
+    content: "French and world arthouse films and documentaries, with no ads.",
+    limits: "Monthly viewing allowance set by your library.", where: ["Web"] },
+
+  // ---------- Italy ----------
+  { n: "RaiPlay", by: "RAI · public broadcaster", url: "https://www.raiplay.it", c: ["IT"], t: ["public","live"], reg: "acct", regTxt: "Free account for on-demand.",
+    content: "RAI fiction (Il commissario Montalbano), films, documentaries, Rai Yoyo kids and all live RAI channels.",
+    limits: "Many films and series are locked to Italy. Time-limited availability.", where: ["Web","iOS","Android","Smart TVs","Fire TV"] },
+  { n: "Mediaset Infinity", by: "Mediaset", url: "https://mediasetinfinity.mediaset.it", c: ["IT"], t: ["ads","live"], reg: "acct", regTxt: "Free account.",
+    content: "Live Canale 5, Italia 1, Rete 4 and others, plus series, films and shows on demand.",
+    limits: "Ads. Infinity+ (paid) for premium films and sport.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "La7", by: "La7", url: "https://www.la7.it", c: ["IT"], t: ["ads","live"], reg: "none", regTxt: "None.",
+    content: "Live La7 and catch-up of its current-affairs programmes and series.",
+    limits: "Ads. Smaller catalogue.", where: ["Web","iOS","Android","Smart TVs"] },
+
+  // ---------- Anywhere online ----------
+  { n: "ARTE", by: "Franco-German public broadcaster", url: "https://www.arte.tv", c: ["ALL","ES","DE","FR","IT"], t: ["public"], reg: "none", regTxt: "None.",
+    content: "European films, documentaries, series and concerts, with versions in French, German, English, Spanish, Italian and Polish.",
+    limits: "Much of the catalogue is limited to the EU; some programmes play worldwide. No ads.", where: ["Web","iOS","Android","Smart TVs"] },
+  { n: "Internet Archive · Feature Films", xk: 1, by: "Internet Archive (non-profit)", url: "https://archive.org/details/feature_films", c: ["ALL"], t: ["public"], reg: "none", regTxt: "None.",
+    content: "Public-domain classics: silent cinema, film noir, early horror and sci-fi, newsreels.",
+    limits: "Only old films whose copyright has expired. Video quality varies.", where: ["Web"] },
+  { n: "NFB", xk: 1, by: "National Film Board of Canada", url: "https://www.nfb.ca", c: ["ALL"], t: ["public"], reg: "none", regTxt: "None.",
+    content: "Thousands of documentaries and award-winning animated shorts in English and French.",
+    limits: "A few titles are locked to Canada.", where: ["Web","iOS","Android"] },
+  { n: "NASA+", xk: 1, by: "NASA", url: "https://plus.nasa.gov", c: ["ALL"], t: ["public","live"], reg: "none", regTxt: "None.",
+    content: "Space documentaries, mission series and live launches, with no ads.",
+    limits: "Space and science only.", where: ["Web","iOS","Android","Smart TVs","Roku","Fire TV"] },
+  { n: "DW Documentary", xk: 1, by: "Deutsche Welle (official YouTube channel)", url: "https://www.youtube.com/@DWDocumentary", c: ["ALL"], t: ["public"], reg: "none", regTxt: "None.",
+    content: "Full-length documentaries on science, society and history; also in Spanish on DW Documental.",
+    limits: "Ads on YouTube. Documentaries only.", where: ["Web","YouTube apps"] },
+];
+
+P.forEach(p => { if (p.xk && !p.c.includes("XK")) p.c.push("XK"); });
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let country = store.get("atlas.country2", "XK"), type = "all";
+if (location.hash && COUNTRIES.some(c => c[0] === location.hash.slice(1).toUpperCase())) country = location.hash.slice(1).toUpperCase();
+
+function inCountry(p) { return p.c.includes(country); }
+function renderControls() {
+  $("#countries").innerHTML = COUNTRIES.map(([cc, name]) => `<button class="chip" data-c="${cc}" aria-pressed="${cc === country}">${name}<span class="cc">${P.filter(p => p.c.includes(cc)).length}</span></button>`).join("");
+  $("#types").innerHTML = TYPES.map(([id, l]) => `<button class="chip small" data-t="${id}" aria-pressed="${id === type}">${l}</button>`).join("");
+}
+const REG = { none: ["reg-none", "No sign-up"], acct: ["reg-acct", "Free account"], card: ["reg-card", "Card or licence"] };
+const ORDER = { public: 0, ads: 1, live: 2, library: 3, guide: 4 };
+
+function render() {
+  const q = $("#q").value.trim().toLowerCase();
+  let list = P.filter(inCountry);
+  const all = list;
+  if (type !== "all") list = list.filter(p => p.t.includes(type));
+  if (q) list = list.filter(p => (p.n + " " + p.by + " " + p.content + " " + p.limits).toLowerCase().includes(q));
+  const TOP = ["RTK", "RTVE Play", "BBC iPlayer", "Tubi", "ARD Mediathek", "france.tv", "RaiPlay", "ARTE"];
+  const rank = p => { const i = TOP.indexOf(p.n); return i < 0 ? 99 : i; };
+  list.sort((a, b) => (a.c.length > 2) - (b.c.length > 2) || rank(a) - rank(b) || ORDER[a.t[0]] - ORDER[b.t[0]] || a.n.localeCompare(b.n));
+  const name = COUNTRIES.find(c => c[0] === country)[1];
+  $("#xknote").hidden = country !== "XK";
+  $("#listTitle").textContent = country === "ALL" ? "Available almost anywhere" : `Free in ${name}`;
+  $("#listSub").textContent = `${list.length} of ${all.length} platforms shown · local services first`;
+  $("#summary").innerHTML = `
+    <div class="stat"><b>${all.length}</b><span>free legal platforms</span></div>
+    <div class="stat none"><b>${all.filter(p => p.reg === "none").length}</b><span>need no sign-up</span></div>
+    <div class="stat acct"><b>${all.filter(p => p.reg === "acct").length}</b><span>need a free account</span></div>
+    <div class="stat card"><b>${all.filter(p => p.reg === "card").length}</b><span>need a library card or licence</span></div>`;
+  $("#grid").innerHTML = list.length ? list.map(p => {
+    const [rc, rl] = REG[p.reg];
+    return `<article class="pf">
+      <div class="pf-top"><div><h3>${esc(p.n)}</h3><div class="who">${esc(p.by)}</div></div><a class="open" href="${p.url}" target="_blank" rel="noopener">Open ↗</a></div>
+      ${p.chk && p.chk[country] ? `<p class="check">${esc(p.chk[country])}</p>` : ""}
+      <div class="badges"><span class="b ${rc}">${rl}</span>${p.t.map(t => `<span class="b">${TYPE_LABEL[t]}</span>`).join("")}</div>
+      <dl class="fields">
+        <div><dt>Content</dt><dd>${esc(p.content)}</dd></div>
+        <div><dt>Sign-up</dt><dd>${esc(p.regTxt)}</dd></div>
+        <div><dt>Limits</dt><dd>${esc(p.limits)}</dd></div>
+        <div><dt>Where</dt><dd class="where">${p.where.map(w => `<span>${esc(w)}</span>`).join("")}</dd></div>
+      </dl>
+    </article>`;
+  }).join("") : `<div class="empty">Nothing matches that filter in ${esc(name)}. Try "All" or another search word.</div>`;
+}
+document.addEventListener("click", e => {
+  const c = e.target.closest("[data-c]");
+  if (c) { country = c.dataset.c; store.set("atlas.country2", country); history.replaceState(null, "", "#" + country.toLowerCase()); renderControls(); render(); return; }
+  const t = e.target.closest("[data-t]");
+  if (t) { type = t.dataset.t; renderControls(); render(); }
+});
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1).toUpperCase(); if (COUNTRIES.some(c => c[0] === h)) { country = h; renderControls(); render(); } });
+$("#q").addEventListener("input", render);
+renderControls(); render();
+</script>
+
+</body>
+</html>

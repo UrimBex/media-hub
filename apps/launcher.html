@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Hearth Media Center</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a "10-foot" living-room launcher — sticky search + category rail on top, big focusable tiles below, then your self-hosted stack and setup. Dark-first. */
+:root {
+  --bg: #12131c;
+  --surface: #1b1d2a;
+  --surface-2: #252838;
+  --line: #33364a;
+  --fg: #eceaf2;
+  --muted: #9a98ad;
+  --accent: #ffb547;      /* lamp amber */
+  --accent-ink: #1a1206;
+  --ok: #6fd3a4;
+  --info: #8fb4ff;
+  --warn: #f3a07a;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r: 14px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f4ef; --surface: #ffffff; --surface-2: #eeebe3; --line: #dcd7cb;
+    --fg: #1d1b26; --muted: #625f70; --accent: #b86a00; --accent-ink: #ffffff;
+    --ok: #1f8a5b; --info: #2f5fc4; --warn: #b4542a; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f6f4ef; --surface: #ffffff; --surface-2: #eeebe3; --line: #dcd7cb;
+  --fg: #1d1b26; --muted: #625f70; --accent: #b86a00; --accent-ink: #ffffff;
+  --ok: #1f8a5b; --info: #2f5fc4; --warn: #b4542a; color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); }
+a { color: inherit; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* Header */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.top .wrap { padding-block: 14px 10px; display: grid; gap: 12px; }
+.brandrow { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 22px; }
+.lamp { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, var(--accent), color-mix(in srgb, var(--accent) 20%, transparent) 70%); box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 55%, transparent); }
+.clock { margin-left: auto; font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+.search { flex: 1 1 340px; position: relative; min-width: 0; }
+.search input { width: 100%; font: inherit; font-size: 16px; padding: 12px 44px 12px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.search input::placeholder { color: var(--muted); }
+.search kbd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+kbd { font-family: var(--font-mono); font-size: 12px; padding: 2px 7px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; color: var(--muted); background: var(--surface-2); }
+
+.rail { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.rail::-webkit-scrollbar { display: none; }
+.chip { flex: none; font: 600 14px var(--font-body); padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.chip:hover { color: var(--fg); border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip .n { font-family: var(--font-mono); font-size: 11px; opacity: .75; }
+
+main .wrap { padding-block: 24px 64px; display: grid; gap: 44px; }
+.section-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.section-head h2 { font-size: 24px; }
+.section-head p { margin: 0; color: var(--muted); }
+
+/* Web search row */
+.websearch { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px 16px; border: 1px dashed var(--line); border-radius: var(--r); }
+.websearch span { color: var(--muted); margin-right: 4px; }
+.websearch a { text-decoration: none; padding: 6px 12px; border-radius: 8px; background: var(--surface-2); font-weight: 500; }
+.websearch a:hover { background: var(--accent); color: var(--accent-ink); }
+
+/* Tiles */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.tile { position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); text-decoration: none; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; min-width: 0; }
+.tile:hover, .tile:focus-visible { transform: translateY(-3px) scale(1.015); border-color: var(--accent); box-shadow: 0 12px 30px -12px color-mix(in srgb, var(--accent) 45%, transparent); outline: none; }
+.tile-top { display: flex; align-items: center; gap: 12px; }
+.mono { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font: 800 18px var(--font-display); color: #fff; flex: none; }
+.tile h3 { font-size: 17px; line-height: 1.2; }
+.tile .kind { font-size: 12px; color: var(--muted); }
+.tile p { margin: 0; color: var(--muted); font-size: 14px; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.tag.free { color: var(--ok); }
+.tag.ads { color: var(--info); }
+.tag.lib { color: var(--warn); }
+.tag.oss { color: var(--accent); }
+.tag.region { color: var(--muted); }
+.pin { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; }
+.pin:hover { border-color: var(--line); color: var(--fg); }
+.pin[aria-pressed="true"] { color: var(--accent); }
+.empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r); }
+
+/* Server panel */
+.server { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; }
+@media (max-width: 860px) { .server { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; min-width: 0; }
+.panel h3 { font-size: 18px; margin-bottom: 6px; }
+.panel > p { color: var(--muted); margin: 0 0 14px; }
+.hostrow { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.hostrow label { color: var(--muted); font-size: 13px; }
+.hostrow input { flex: 1 1 160px; min-width: 0; font: 14px var(--font-mono); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.svc { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.svc .mono { width: 36px; height: 36px; font-size: 15px; border-radius: 10px; }
+.svc b { display: block; }
+.svc small { color: var(--muted); }
+.svc a.open { text-decoration: none; font: 600 13px var(--font-mono); padding: 7px 12px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
+
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.steps li::marker { color: var(--accent); font-weight: 700; }
+code { font-family: var(--font-mono); font-size: 13px; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+.codebox { position: relative; margin-top: 14px; }
+.codebox pre { margin: 0; overflow-x: auto; padding: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; font: 12.5px/1.6 var(--font-mono); }
+.copy { position: absolute; top: 8px; right: 8px; font: 600 12px var(--font-body); padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); cursor: pointer; }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+
+.diagram { overflow-x: auto; }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.legend .panel h3 { font-size: 16px; }
+.legend .panel p { margin: 0; color: var(--muted); font-size: 14px; }
+
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+footer .wrap { padding-block: 20px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+
+@media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover, .tile:focus-visible { transform: none; } }
+@media (max-width: 480px) { .clock { display: none; } .grid { grid-template-columns: 1fr 1fr; gap: 10px; } .tile { padding: 12px; } .tile p { display: none; } .mono { width: 38px; height: 38px; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brandrow">
+      <div class="brand"><span class="lamp" aria-hidden="true"></span>Hearth</div>
+      <div class="search">
+        <input id="q" type="search" placeholder="Search services, or type a title to find where it streams free" autocomplete="off" aria-label="Search">
+        <kbd aria-hidden="true">/</kbd>
+      </div>
+      <div class="clock" id="clock"></div>
+    </div>
+    <nav class="rail" id="rail" aria-label="Categories"></nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <section aria-labelledby="h-browse">
+      <div class="section-head">
+        <h2 id="h-browse">Watch &amp; listen</h2>
+        <p id="countline">Free, legal sources. Pin your favourites with ★ and they stay on top.</p>
+      </div>
+      <div class="websearch" id="websearch" hidden>
+        <span>Find “<b id="wsq"></b>” on:</span>
+      </div>
+      <div class="grid" id="grid" style="margin-top:14px"></div>
+    </section>
+
+    <section aria-labelledby="h-server">
+      <div class="section-head">
+        <h2 id="h-server">Your own library</h2>
+        <p>Self-hosted, open-source servers for the files you already own.</p>
+      </div>
+      <div class="server">
+        <div class="panel">
+          <h3>Running on this laptop</h3>
+          <p>Once the stack below is up, these open your servers. Change the host to reach them from a TV or phone on the same Wi‑Fi.</p>
+          <div class="hostrow">
+            <label for="host">Host</label>
+            <input id="host" value="localhost" spellcheck="false">
+          </div>
+          <div id="svcs"></div>
+        </div>
+        <div class="panel">
+          <h3>Set it up in about 15 minutes</h3>
+          <div class="tabs" role="tablist">
+            <button class="chip" id="t-docker" role="tab" aria-pressed="true">With Docker</button>
+            <button class="chip" id="t-native" role="tab" aria-pressed="false">Without Docker</button>
+          </div>
+          <div id="p-docker">
+            <ol class="steps">
+              <li>Install <a href="https://docs.docker.com/get-docker/" target="_blank" rel="noopener">Docker Desktop</a> (free for personal use).</li>
+              <li>Make a folder <code>~/Media</code> with <code>Movies</code>, <code>TV</code>, <code>Music</code>, <code>Podcasts</code> inside.</li>
+              <li>Save the file below as <code>docker-compose.yml</code> in a new folder and run <code>docker compose up -d</code>.</li>
+              <li>Open Jellyfin, create your admin user, then add libraries pointing at <code>/media/Movies</code>, <code>/media/TV</code> and so on.</li>
+            </ol>
+            <div class="codebox">
+              <button class="copy" id="copy" type="button">Copy</button>
+<pre id="compose">services:
+  jellyfin:            # movies, TV, docs, home videos
+    image: jellyfin/jellyfin:latest
+    ports: ["8096:8096"]
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - ~/Media:/media:ro
+    restart: unless-stopped
+
+  navidrome:           # music streaming (Subsonic API)
+    image: deluan/navidrome:latest
+    ports: ["4533:4533"]
+    volumes:
+      - ./navidrome:/data
+      - ~/Media/Music:/music:ro
+    restart: unless-stopped
+
+  audiobookshelf:      # podcasts + audiobooks, auto-downloads
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    ports: ["13378:80"]
+    volumes:
+      - ./abs/config:/config
+      - ./abs/metadata:/metadata
+      - ~/Media/Podcasts:/podcasts
+    restart: unless-stopped</pre>
+            </div>
+          </div>
+          <div id="p-native" hidden>
+            <ol class="steps">
+              <li>Install the <a href="https://jellyfin.org/downloads/server" target="_blank" rel="noopener">Jellyfin server</a> for Windows, macOS or Linux. It opens at port 8096.</li>
+              <li>Install <a href="https://www.navidrome.org/docs/installation/" target="_blank" rel="noopener">Navidrome</a> as a single binary, or skip it and use Jellyfin's music library.</li>
+              <li>For podcasts, use <a href="https://gpodder.github.io/" target="_blank" rel="noopener">gPodder</a> on desktop or <a href="https://antennapod.org/" target="_blank" rel="noopener">AntennaPod</a> on Android. No server needed.</li>
+              <li>For a full-screen TV feel, install <a href="https://kodi.tv/download/" target="_blank" rel="noopener">Kodi</a> and add the Jellyfin add-on, or use <a href="https://github.com/jellyfin/jellyfin-media-player" target="_blank" rel="noopener">Jellyfin Media Player</a>.</li>
+              <li>Install <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener">VLC</a> as the fallback player for any file format.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-arch">
+      <div class="section-head">
+        <h2 id="h-arch">How it fits together</h2>
+        <p>One launcher, three sources: your files, free streaming, and open feeds.</p>
+      </div>
+      <div class="panel diagram">
+<pre class="mermaid">
+flowchart LR
+  U([You: laptop, TV, phone]) --> H[Hearth launcher]
+  H --> J[Jellyfin :8096<br/>movies, TV, docs]
+  H --> N[Navidrome :4533<br/>music]
+  H --> A[Audiobookshelf :13378<br/>podcasts]
+  H --> S[Free legal streaming<br/>Tubi, Pluto, Kanopy, PBS…]
+  H --> F[Open clients<br/>FreeTube, PeerTube, VLC]
+  M[(~/Media folder)] --> J
+  M --> N
+  R[(RSS feeds)] --> A
+  J --> K[Kodi / Jellyfin apps<br/>on TV + phone]
+</pre>
+      </div>
+      <div class="legend" style="margin-top:14px">
+        <div class="panel"><h3>Your files</h3><p>Jellyfin fetches posters, plots and subtitles, remembers where you stopped, and streams to any device on your network. Rip discs you own or keep downloads you bought.</p></div>
+        <div class="panel"><h3>Free streaming</h3><p>Ad-supported services and library-card services carry thousands of licensed films and shows. Availability depends on your country.</p></div>
+        <div class="panel"><h3>Open feeds</h3><p>Podcasts are plain RSS, so any open-source app can subscribe. PeerTube and the Internet Archive host video under open licences.</p></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Keys: <kbd>/</kbd> search · <kbd>1</kbd>–<kbd>8</kbd> categories · arrow keys move between tiles · <kbd>Enter</kbd> opens</span>
+    <span>Every source listed is free and legal. Some need a free account or a library card.</span>
+  </div>
+</footer>
+
+<script>
+const CATS = [
+  ["all", "Everything"], ["movies", "Movies"], ["tv", "TV & Live"], ["docs", "Documentaries"],
+  ["music", "Music & Radio"], ["podcasts", "Podcasts"], ["videos", "Videos"], ["apps", "Open-source apps"]
+];
+// cost: free | ads | lib ; oss: true for open-source
+const S = [
+  // Movies
+  ["Tubi", "movies tv", "https://tubitv.com", "Huge ad-supported film and TV catalog, no subscription.", "ads", "US, CA, UK, AU+"],
+  ["Pluto TV", "tv movies", "https://pluto.tv", "Hundreds of live channels plus on-demand films.", "ads", "Many countries"],
+  ["Kanopy", "movies docs", "https://www.kanopy.com", "Criterion, A24 and indie films through your public library or university.", "lib", "US, CA, AU, UK+"],
+  ["Hoopla", "movies music tv", "https://www.hoopladigital.com", "Films, TV, music albums and audiobooks with a library card.", "lib", "US, CA"],
+  ["Plex Free", "movies tv", "https://watch.plex.tv", "Free movies, shows and live channels with ads.", "ads", "Many countries"],
+  ["The Roku Channel", "movies tv", "https://therokuchannel.roku.com", "Free films, originals and live TV in the browser.", "ads", "US, CA, UK"],
+  ["Internet Archive Films", "movies docs", "https://archive.org/details/feature_films", "Public-domain classics, silent cinema and noir.", "free", "Worldwide"],
+  ["YouTube Movies", "movies", "https://www.youtube.com/feed/storefront", "A rotating shelf of full films free with ads.", "ads", "Varies"],
+  ["RetroCrush", "movies tv", "https://www.retrocrush.tv", "Classic anime films and series, free tier with ads.", "ads", "Many countries"],
+  // TV & live
+  ["Samsung TV Plus", "tv", "https://www.samsungtvplus.com", "Live channels that also play in the browser.", "ads", "Many countries"],
+  ["Xumo Play", "tv movies", "https://play.xumo.com", "Live and on-demand channels, browser playback.", "ads", "US"],
+  ["PBS", "tv docs", "https://www.pbs.org/video/", "NOVA, Frontline, Masterpiece and more, free to stream.", "free", "US"],
+  ["BBC iPlayer", "tv docs", "https://www.bbc.co.uk/iplayer", "BBC box sets and live channels. Requires a TV licence.", "free", "UK"],
+  ["CBC Gem", "tv docs", "https://gem.cbc.ca", "Canadian and British series, free with an account.", "ads", "Canada"],
+  ["ARTE", "tv docs movies", "https://www.arte.tv", "European cinema, concerts and documentaries in 6 languages.", "free", "Europe"],
+  ["ARD Mediathek", "tv docs", "https://www.ardmediathek.de", "German public TV on demand.", "free", "Germany+"],
+  // Docs
+  ["NASA+", "docs videos", "https://plus.nasa.gov", "Missions, launches and science series with no ads.", "free", "Worldwide"],
+  ["NFB", "docs movies", "https://www.nfb.ca", "National Film Board of Canada: thousands of free docs and animation.", "free", "Worldwide"],
+  ["DW Documentary", "docs", "https://www.youtube.com/@DWDocumentary", "Full-length documentaries from Deutsche Welle.", "free", "Worldwide"],
+  ["TED", "docs videos podcasts", "https://www.ted.com/talks", "Talks on science, design and ideas.", "free", "Worldwide"],
+  // Music
+  ["Radio Garden", "music", "https://radio.garden", "Spin a globe and tune into live radio from anywhere.", "free", "Worldwide"],
+  ["SomaFM", "music", "https://somafm.com", "Listener-supported, commercial-free indie radio.", "free", "Worldwide"],
+  ["Bandcamp", "music", "https://bandcamp.com", "Stream indie albums free and buy direct from artists.", "free", "Worldwide"],
+  ["Free Music Archive", "music", "https://freemusicarchive.org", "Creative Commons music to stream and download.", "free", "Worldwide"],
+  ["Jamendo", "music", "https://www.jamendo.com", "Independent music under free licences.", "free", "Worldwide"],
+  ["Live Music Archive", "music", "https://archive.org/details/etree", "250,000+ concert recordings shared with band permission.", "free", "Worldwide"],
+  ["Musopen", "music", "https://musopen.org", "Public-domain classical recordings and sheet music.", "free", "Worldwide"],
+  ["Spotify Free", "music podcasts", "https://open.spotify.com", "Music and podcasts with ads on the free tier.", "ads", "Most countries"],
+  ["YouTube Music", "music", "https://music.youtube.com", "Official albums and videos, free with ads.", "ads", "Most countries"],
+  // Podcasts
+  ["Podcast Index", "podcasts", "https://podcastindex.org", "Open, independent directory of 4M+ podcasts.", "free", "Worldwide"],
+  ["Pocket Casts", "podcasts", "https://pocketcasts.com", "Polished player with a full free tier on web and mobile.", "free", "Worldwide"],
+  ["Apple Podcasts", "podcasts", "https://podcasts.apple.com", "The largest catalog, browsable on the web.", "free", "Worldwide"],
+  // Videos
+  ["YouTube", "videos docs", "https://www.youtube.com", "The everything channel.", "ads", "Worldwide"],
+  ["PeerTube", "videos", "https://joinpeertube.org/browse-content", "Decentralised, ad-free video across independent servers.", "free", "Worldwide", true],
+  ["Vimeo", "videos", "https://vimeo.com/watch", "Short films and creator work, curated Staff Picks.", "free", "Worldwide"],
+  // Open-source apps
+  ["Jellyfin", "apps movies tv", "https://jellyfin.org", "Your own Netflix-style server for files you own.", "free", "Windows · Mac · Linux", true],
+  ["Kodi", "apps movies tv music", "https://kodi.tv", "Full-screen, remote-friendly media center.", "free", "All platforms", true],
+  ["VLC", "apps videos", "https://www.videolan.org/vlc/", "Plays every format, streams and discs.", "free", "All platforms", true],
+  ["mpv", "apps videos", "https://mpv.io", "Fast, minimal, keyboard-driven player.", "free", "All platforms", true],
+  ["FreeTube", "apps videos", "https://freetubeapp.io", "Private desktop YouTube client with no ads or tracking.", "free", "Windows · Mac · Linux", true],
+  ["Navidrome", "apps music", "https://www.navidrome.org", "Lightweight music server, works with Subsonic apps.", "free", "All platforms", true],
+  ["Strawberry", "apps music", "https://www.strawberrymusicplayer.org", "Desktop music library player for collectors.", "free", "Windows · Mac · Linux", true],
+  ["Audiobookshelf", "apps podcasts", "https://www.audiobookshelf.org", "Self-hosted podcasts and audiobooks with auto-download.", "free", "Server + apps", true],
+  ["AntennaPod", "apps podcasts", "https://antennapod.org", "Open-source podcast app for Android.", "free", "Android", true],
+  ["gPodder", "apps podcasts", "https://gpodder.github.io", "Desktop podcast downloader and player.", "free", "Windows · Mac · Linux", true],
+].map(([name, cats, url, desc, cost, region, oss]) => ({ name, cats: cats.split(" "), url, desc, cost, region, oss: !!oss }));
+
+const CAT_HUE = { movies: 12, tv: 280, docs: 165, music: 330, podcasts: 40, videos: 210, apps: 95 };
+const COST = { free: ["free", "Free"], ads: ["ads", "Free · ads"], lib: ["lib", "Library card"] };
+const WEB = [
+  ["JustWatch", q => `https://www.justwatch.com/us/search?q=${q}`],
+  ["Internet Archive", q => `https://archive.org/search?query=${q}`],
+  ["Tubi", q => `https://tubitv.com/search/${q}`],
+  ["YouTube", q => `https://www.youtube.com/results?search_query=${q}`],
+  ["Podcast Index", q => `https://podcastindex.org/search?q=${q}&type=all`],
+  ["Bandcamp", q => `https://bandcamp.com/search?q=${q}`],
+];
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+let cat = store.get("hearth.cat", "all");
+let pins = new Set(store.get("hearth.pins", ["Jellyfin", "Tubi", "Radio Garden", "Kanopy"]));
+if (!CATS.some(c => c[0] === cat)) cat = "all";
+
+const $ = s => document.querySelector(s);
+const grid = $("#grid"), rail = $("#rail"), q = $("#q");
+
+function color(item) {
+  const h = CAT_HUE[item.cats.find(c => c !== "apps") || "apps"] ?? 95;
+  const off = [...item.name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 24 - 12;
+  return `linear-gradient(135deg, hsl(${h + off} 62% 52%), hsl(${h + off + 30} 58% 36%))`;
+}
+function initials(n) { const w = n.replace(/[^A-Za-z0-9 ]/g, "").split(" ").filter(Boolean); return (w.length > 1 ? w[0][0] + w[1][0] : n.slice(0, 2)).toUpperCase(); }
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function renderRail() {
+  rail.innerHTML = CATS.map(([id, label], i) => {
+    const n = id === "all" ? S.length : S.filter(s => s.cats.includes(id)).length;
+    return `<button class="chip" data-cat="${id}" aria-pressed="${id === cat}" title="Shortcut: ${i + 1}">${label}<span class="n">${n}</span></button>`;
+  }).join("");
+}
+
+function render() {
+  const term = q.value.trim().toLowerCase();
+  let list = S.filter(s => cat === "all" || s.cats.includes(cat));
+  if (term) list = list.filter(s => (s.name + " " + s.desc + " " + s.cats.join(" ") + " " + s.region).toLowerCase().includes(term));
+  list.sort((a, b) => (pins.has(b.name) - pins.has(a.name)) || 0);
+
+  grid.innerHTML = list.length ? list.map(s => {
+    const [cls, label] = COST[s.cost];
+    const pinned = pins.has(s.name);
+    return `<a class="tile" href="${s.url}" target="_blank" rel="noopener">
+      <div class="tile-top"><span class="mono" style="background:${color(s)}" aria-hidden="true">${initials(s.name)}</span>
+        <div><h3>${esc(s.name)}</h3><div class="kind">${s.cats.filter(c => c !== "apps").map(c => CATS.find(x => x[0] === c)[1]).join(" · ") || "App"}</div></div></div>
+      <p>${esc(s.desc)}</p>
+      <div class="tags"><span class="tag ${cls}">${label}</span>${s.oss ? '<span class="tag oss">Open source</span>' : ""}<span class="tag region">${esc(s.region)}</span></div>
+      <button class="pin" type="button" data-pin="${esc(s.name)}" aria-pressed="${pinned}" aria-label="${pinned ? "Unpin" : "Pin"} ${esc(s.name)}">${pinned ? "★" : "☆"}</button>
+    </a>`;
+  }).join("") : `<div class="empty">No service matches “${esc(q.value)}”. Use the title search links above to find where it streams free.</div>`;
+
+  const ws = $("#websearch");
+  ws.hidden = !term;
+  if (term) {
+    const enc = encodeURIComponent(q.value.trim());
+    $("#wsq").textContent = q.value.trim();
+    ws.querySelectorAll("a").forEach(a => a.remove());
+    WEB.forEach(([n, f]) => { const a = document.createElement("a"); a.href = f(enc); a.target = "_blank"; a.rel = "noopener"; a.textContent = n; ws.appendChild(a); });
+  }
+  $("#countline").textContent = `${list.length} free, legal sources${cat !== "all" ? " in " + CATS.find(c => c[0] === cat)[1] : ""}. Pin favourites with ★ and they stay on top.`;
+}
+
+rail.addEventListener("click", e => {
+  const b = e.target.closest("[data-cat]"); if (!b) return;
+  cat = b.dataset.cat; store.set("hearth.cat", cat); renderRail(); render();
+});
+grid.addEventListener("click", e => {
+  const b = e.target.closest("[data-pin]"); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const n = b.dataset.pin; pins.has(n) ? pins.delete(n) : pins.add(n);
+  store.set("hearth.pins", [...pins]); render();
+});
+q.addEventListener("input", render);
+
+// Keyboard: "/" search, 1-8 categories, arrows between tiles
+document.addEventListener("keydown", e => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (e.key === "/" && !typing) { e.preventDefault(); q.focus(); return; }
+  if (e.key === "Escape" && document.activeElement === q) { q.value = ""; render(); q.blur(); return; }
+  if (!typing && /^[1-8]$/.test(e.key)) { cat = CATS[+e.key - 1][0]; store.set("hearth.cat", cat); renderRail(); render(); return; }
+  if (e.key === "ArrowDown" && document.activeElement === q) { e.preventDefault(); grid.querySelector(".tile")?.focus(); return; }
+  const tile = document.activeElement.closest?.(".tile");
+  if (!tile || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+  e.preventDefault();
+  const tiles = [...grid.querySelectorAll(".tile")];
+  const i = tiles.indexOf(tile);
+  const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
+  const j = { ArrowLeft: i - 1, ArrowRight: i + 1, ArrowUp: i - cols, ArrowDown: i + cols }[e.key];
+  if (j < 0 && e.key === "ArrowUp") { q.focus(); return; }
+  tiles[Math.max(0, Math.min(tiles.length - 1, j))]?.focus();
+});
+
+// Self-hosted servers
+const SVCS = [
+  ["Jellyfin", 8096, "Movies, TV, documentaries", 210],
+  ["Navidrome", 4533, "Music library", 330],
+  ["Audiobookshelf", 13378, "Podcasts & audiobooks", 40],
+];
+const hostIn = $("#host");
+hostIn.value = store.get("hearth.host", "localhost");
+function renderSvcs() {
+  const h = (hostIn.value.trim() || "localhost").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  $("#svcs").innerHTML = SVCS.map(([n, p, d, hue]) => `<div class="svc">
+    <span class="mono" style="background:linear-gradient(135deg,hsl(${hue} 62% 52%),hsl(${hue + 30} 58% 36%))" aria-hidden="true">${initials(n)}</span>
+    <div><b>${n}</b><small>${d}</small></div>
+    <a class="open" href="http://${esc(h)}:${p}" target="_blank" rel="noopener">:${p} ↗</a></div>`).join("");
+}
+hostIn.addEventListener("input", () => { store.set("hearth.host", hostIn.value); renderSvcs(); });
+
+// Setup tabs
+function tab(which) {
+  $("#t-docker").setAttribute("aria-pressed", which === "docker");
+  $("#t-native").setAttribute("aria-pressed", which === "native");
+  $("#p-docker").hidden = which !== "docker";
+  $("#p-native").hidden = which !== "native";
+}
+$("#t-docker").onclick = () => tab("docker");
+$("#t-native").onclick = () => tab("native");
+
+$("#copy").addEventListener("click", async () => {
+  const b = $("#copy");
+  try { await navigator.clipboard.writeText($("#compose").textContent); b.textContent = "Copied"; }
+  catch { const r = document.createRange(); r.selectNodeContents($("#compose")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Selected, press Ctrl+C"; }
+  setTimeout(() => b.textContent = "Copy", 2000);
+});
+
+// Clock
+function tick() { $("#clock").textContent = new Date().toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }); }
+tick(); setInterval(tick, 30000);
+
+renderRail(); render(); renderSvcs();
+</script>
+
+</body>
+</html>

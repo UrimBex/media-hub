@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stage Player</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one-screen app — a stage (video or audio card with overlay controls) on the left, the playlist rail on the right; stacks on phones. Dark-first graphite with a coral signal lamp. */
+:root {
+  --bg: #121316;
+  --panel: #1a1c21;
+  --panel-2: #24272e;
+  --line: #31353e;
+  --fg: #eef0f4;
+  --muted: #9ba1ad;
+  --accent: #ff8a65;        /* signal lamp */
+  --accent-ink: #2a0d03;
+  --ok: #7fd4a8;
+  --stage: #000000;
+  --font-ui: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sub-size: 28px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --bg: #f2f3f6; --panel: #ffffff; --panel-2: #e9ebf0; --line: #d7dae2; --fg: #16181d; --muted: #5d6370; --accent: #d9532c; --accent-ink: #ffffff; --ok: #1e8a55; color-scheme: light; }
+}
+:root[data-theme="light"] { --bg: #f2f3f6; --panel: #ffffff; --panel-2: #e9ebf0; --line: #d7dae2; --fg: #16181d; --muted: #5d6370; --accent: #d9532c; --accent-ink: #ffffff; --ok: #1e8a55; color-scheme: light; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-ui); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+kbd { font: 600 11px var(--font-mono); padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); border-bottom-width: 2px; background: var(--panel-2); color: var(--fg); }
+
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr); gap: 0; }
+.bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin-right: auto; }
+.lamp { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.lamp.off { background: var(--line); box-shadow: none; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-weight: 700; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* Stage */
+.stage-wrap { padding: 16px max(16px, env(safe-area-inset-left, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; }
+.stage { position: relative; background: var(--stage); border-radius: 14px; overflow: hidden; min-height: 220px; display: grid; place-items: center; user-select: none; }
+.stage video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+.stage:fullscreen { border-radius: 0; }
+.stage.idle { cursor: none; }
+.poster { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--accent) 35%, #000) 0%, #0b0b0d 65%); color: #f5f5f7; }
+.poster h2 { margin: 0; font-size: clamp(20px, 3vw, 34px); font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; overflow-wrap: anywhere; }
+.poster p { margin: 6px 0 0; color: rgba(245,245,247,.7); }
+.eq { display: flex; gap: 5px; align-items: flex-end; height: 46px; justify-content: center; margin-bottom: 16px; }
+.eq i { width: 7px; height: 20%; border-radius: 3px; background: #ffb199; }
+.playing .eq i { animation: eq 1s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: -.3s } .eq i:nth-child(3) { animation-delay: -.6s } .eq i:nth-child(4) { animation-delay: -.15s } .eq i:nth-child(5) { animation-delay: -.45s }
+@keyframes eq { 0%,100% { height: 20%; } 50% { height: 100%; } }
+.empty-stage { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: #e8e8ec; background: repeating-linear-gradient(135deg, #111214 0 14px, #141518 14px 28px); }
+.empty-stage h2 { margin: 0 0 6px; font-size: 22px; }
+.empty-stage p { margin: 0 0 14px; color: #a3a7b0; }
+.drop .stage { outline: 3px dashed var(--accent); outline-offset: -8px; }
+
+.subs { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12%; width: 92%; text-align: center; pointer-events: none; transition: bottom .2s; z-index: 2; }
+.stage.show-ui .subs { bottom: calc(12% + 70px); }
+.subs span { display: inline; padding: .08em .35em; background: rgba(0,0,0,.72); color: #fff; font-size: calc(var(--sub-size) * var(--sub-scale, 1)); line-height: 1.35; font-weight: 600; box-decoration-break: clone; -webkit-box-decoration-break: clone; white-space: pre-line; }
+
+.toast { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: 10px; align-items: center; padding: 8px 10px 8px 14px; border-radius: 999px; background: rgba(20,20,24,.9); color: #fff; font-weight: 600; }
+.toast button { border: 0; background: #fff; color: #111; border-radius: 999px; padding: 4px 10px; font-weight: 700; cursor: pointer; }
+.flash { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 4; padding: 10px 16px; border-radius: 12px; background: rgba(0,0,0,.65); color: #fff; font: 700 18px var(--font-mono); pointer-events: none; }
+
+/* Controls */
+.controls { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 30px 14px 10px; background: linear-gradient(transparent, rgba(0,0,0,.85)); color: #fff; display: grid; gap: 6px; opacity: 0; transition: opacity .2s; }
+.stage.show-ui .controls { opacity: 1; }
+.seek { position: relative; height: 18px; display: grid; align-items: center; cursor: pointer; }
+.track { height: 4px; border-radius: 4px; background: rgba(255,255,255,.22); position: relative; overflow: hidden; }
+.seek:hover .track { height: 6px; }
+.buf, .prog { position: absolute; inset: 0 auto 0 0; width: 0; }
+.buf { background: rgba(255,255,255,.3); }
+.prog { background: var(--accent); }
+.knob { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); left: 0; pointer-events: none; }
+.tip { position: absolute; bottom: 22px; transform: translateX(-50%); font: 600 12px var(--font-mono); background: rgba(0,0,0,.85); padding: 2px 7px; border-radius: 6px; pointer-events: none; }
+.crow { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
+.cb { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: transparent; border-radius: 10px; cursor: pointer; color: #fff; font-size: 17px; flex: none; }
+.cb:hover { background: rgba(255,255,255,.12); }
+.cb[aria-pressed="true"] { color: var(--accent); }
+.cb svg { width: 22px; height: 22px; fill: currentColor; }
+.time { font: 600 12.5px var(--font-mono); font-variant-numeric: tabular-nums; margin: 0 8px; white-space: nowrap; }
+.vol { width: 90px; accent-color: var(--accent); }
+.grow { flex: 1; }
+.menu { position: absolute; right: 12px; bottom: 64px; z-index: 6; width: min(280px, calc(100% - 24px)); background: rgba(22,22,26,.97); color: #fff; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 8px; display: grid; gap: 4px; max-height: 70%; overflow-y: auto; }
+.menu h4 { margin: 4px 8px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: #a3a7b0; }
+.menu .opt { text-align: left; padding: 7px 10px; border-radius: 8px; border: 0; background: transparent; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; color: #fff; }
+.menu .opt:hover { background: rgba(255,255,255,.1); }
+.menu .opt[aria-checked="true"]::after { content: "✓"; color: var(--accent); }
+.menu .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 10px; }
+.menu .row button { border: 1px solid rgba(255,255,255,.18); background: transparent; color: #fff; border-radius: 7px; padding: 2px 10px; cursor: pointer; }
+.menu .row span { font: 600 12px var(--font-mono); }
+
+.nowline { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.nowline b { font-size: 16px; overflow-wrap: anywhere; }
+.nowline small { color: var(--muted); font-family: var(--font-mono); }
+.keys { color: var(--muted); font-size: 12.5px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Playlist */
+.side { border-left: 1px solid var(--line); background: var(--panel); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; padding-right: env(safe-area-inset-right, 0px); }
+.side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px 10px; }
+.side-head h3 { margin: 0; font-size: 15px; }
+.side-head small { color: var(--muted); font-family: var(--font-mono); }
+.list { overflow-y: auto; padding: 0 8px 8px; display: grid; align-content: start; gap: 2px; }
+.item { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border-radius: 10px; cursor: pointer; position: relative; }
+.item:hover { background: var(--panel-2); }
+.item.cur { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.item.dragging { opacity: .4; }
+.item.over { box-shadow: inset 0 2px 0 var(--accent); }
+.ico { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--panel-2); font-size: 13px; color: var(--muted); }
+.item.cur .ico { background: var(--accent); color: var(--accent-ink); }
+.iname { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.imeta { font: 11.5px var(--font-mono); color: var(--muted); display: flex; gap: 8px; }
+.imeta .cc { color: var(--ok); }
+.ibar { position: absolute; left: 48px; right: 10px; bottom: 3px; height: 2px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.ibar i { display: block; height: 100%; background: var(--accent); }
+.x { border: 0; background: transparent; color: var(--muted); cursor: pointer; border-radius: 6px; width: 26px; height: 26px; opacity: 0; }
+.item:hover .x, .item:focus-within .x { opacity: 1; }
+.x:hover { color: var(--fg); background: var(--panel); }
+.side-foot { display: flex; gap: 6px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); flex-wrap: wrap; }
+.side-foot .btn { padding: 6px 10px; font-size: 13px; }
+.pill { font-weight: 700; }
+.pill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.hint { padding: 18px; color: var(--muted); text-align: center; font-size: 13px; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto auto auto; height: auto; min-height: 100%; }
+  html, body { height: auto; }
+  .stage { aspect-ratio: 16 / 9; min-height: 0; max-width: 100%; }
+  .stage-wrap { padding: 12px max(16px, env(safe-area-inset-left, 0px)) 8px max(16px, env(safe-area-inset-right, 0px)); }
+  .side { border-left: 0; border-top: 1px solid var(--line); }
+  .list { max-height: 50vh; }
+  .vol { display: none; }
+  .cb { width: 34px; height: 34px; }
+  .keys { display: none; }
+  :root { --sub-size: 18px; }
+  .x { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .playing .eq i { animation: none; height: 60%; } .controls, .subs { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <header class="bar">
+    <div class="brand"><span class="lamp off" id="lamp" aria-hidden="true"></span>Stage Player</div>
+    <button class="btn primary" id="openBtn">Open files</button>
+    <button class="btn" id="folderBtn">Open folder</button>
+    <button class="btn" id="subBtn">Add subtitles</button>
+    <input type="file" id="fileIn" multiple accept="video/*,audio/*,.mkv,.srt,.vtt" hidden>
+    <input type="file" id="dirIn" webkitdirectory multiple hidden>
+    <input type="file" id="subIn" accept=".srt,.vtt" hidden>
+  </header>
+
+  <section class="stage-wrap">
+    <div class="stage" id="stage" tabindex="0" aria-label="Player. Press Space to play or pause.">
+      <video id="v" playsinline preload="metadata"></video>
+      <div class="poster" id="poster" hidden><div><div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h2 id="posterTitle"></h2><p id="posterSub"></p></div></div>
+      <div class="empty-stage" id="empty"><div><h2>Drop videos, music and subtitles here</h2><p>MP4, WebM, MKV (H.264), MP3, FLAC, M4A, OGG, WAV · subtitles in SRT or VTT</p><button class="btn primary" data-act="open">Open files</button></div></div>
+      <div class="subs" id="subs" aria-live="off"></div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="flash" id="flash" hidden></div>
+      <div class="menu" id="menu" hidden></div>
+      <div class="controls" id="controls">
+        <div class="seek" id="seek" role="slider" aria-label="Seek" tabindex="-1">
+          <div class="track"><div class="buf" id="buf"></div><div class="prog" id="prog"></div></div>
+          <div class="knob" id="knob"></div>
+          <div class="tip" id="tip" hidden>0:00</div>
+        </div>
+        <div class="crow">
+          <button class="cb" id="prevB" title="Previous (P)" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 6v12z"/></svg></button>
+          <button class="cb" id="playB" title="Play / pause (Space)" aria-label="Play"><svg viewBox="0 0 24 24" id="playIco"><path d="M8 5v14l11-7z"/></svg></button>
+          <button class="cb" id="nextB" title="Next (N)" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+          <button class="cb" id="muteB" title="Mute (M)" aria-label="Mute"><svg viewBox="0 0 24 24" id="volIco"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg></button>
+          <input class="vol" type="range" id="vol" min="0" max="100" value="90" aria-label="Volume">
+          <span class="time" id="time">0:00 / 0:00</span>
+          <span class="grow"></span>
+          <button class="cb" id="ccB" title="Subtitles (C)" aria-label="Subtitles" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1z"/></svg></button>
+          <button class="cb" id="setB" title="Speed and subtitle settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.3 7.3 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.3 7.3 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.3 7.3 0 0 0 1.7 1L11 21h4l.4-2.9a7.3 7.3 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
+          <button class="cb" id="pipB" title="Picture in picture" aria-label="Picture in picture"><svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4 8V5a2 2 0 0 0-2-2H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2zm-2 0H3V5h18v14z"/></svg></button>
+          <button class="cb" id="fsB" title="Fullscreen (F)" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="nowline"><b id="nowName">Nothing loaded</b><small id="nowInfo"></small></div>
+      <div class="keys"><span><kbd>Space</kbd> play</span><span><kbd>←</kbd><kbd>→</kbd> 5 s</span><span><kbd>J</kbd><kbd>L</kbd> 10 s</span><span><kbd>↑</kbd><kbd>↓</kbd> volume</span><span><kbd>F</kbd> fullscreen</span><span><kbd>C</kbd> subtitles</span><span><kbd>&lt;</kbd><kbd>&gt;</kbd> speed</span><span><kbd>N</kbd><kbd>P</kbd> next/prev</span></div>
+    </div>
+  </section>
+
+  <aside class="side" aria-label="Playlist">
+    <div class="side-head"><h3>Playlist</h3><small id="plCount">0 items</small></div>
+    <div class="list" id="list"></div>
+    <div class="side-foot">
+      <button class="btn pill" id="autoB" aria-pressed="true" title="Play the next item automatically">Autoplay</button>
+      <button class="btn pill" id="shufB" aria-pressed="false">Shuffle</button>
+      <button class="btn pill" id="repB" aria-pressed="false">Repeat: off</button>
+      <button class="btn" id="clearB">Clear</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const v = $("#v"), stage = $("#stage");
+const store = {
+  get(k, d) { try { const x = localStorage.getItem(k); return x == null ? d : JSON.parse(x); } catch { return d; } },
+  set(k, x) { try { localStorage.setItem(k, JSON.stringify(x)); } catch {} }
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = s => { if (!isFinite(s) || s < 0) s = 0; s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`; };
+const fmtSize = b => b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? Math.round(b / 1e6) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+
+/* ---------- State ---------- */
+let items = [], cur = -1, nextId = 1, order = [];
+let auto = store.get("stage.auto", true), shuffle = store.get("stage.shuffle", false), repeat = store.get("stage.repeat", "off");
+let subOn = true, subOffset = 0, subSize = store.get("stage.subsize", 1);
+const positions = store.get("stage.pos", {});
+const MEDIA = /\.(mp4|m4v|webm|mkv|mov|ogv|mp3|m4a|aac|flac|ogg|oga|opus|wav)$/i;
+const AUDIO = /\.(mp3|m4a|aac|flac|ogg|oga|opus|wav)$/i;
+const SUBS = /\.(srt|vtt)$/i;
+const base = n => n.replace(/\.[^.]+$/, "").toLowerCase();
+
+/* ---------- Subtitles ---------- */
+function toSec(t) { const p = t.replace(",", ".").split(":").map(Number); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p[0] * 60 + p[1]; }
+function parseSubs(text) {
+  const cues = [];
+  text = text.replace(/\r/g, "").replace(/^﻿/, "");
+  for (const block of text.split(/\n{2,}/)) {
+    const lines = block.split("\n");
+    const i = lines.findIndex(l => l.includes("-->"));
+    if (i < 0) continue;
+    const m = lines[i].match(/((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})/);
+    if (!m) continue;
+    const body = lines.slice(i + 1).join("\n").replace(/<(?!\/?(i|b|u)>)[^>]+>/g, "").replace(/\{\\[^}]+\}/g, "").trim();
+    if (body) cues.push({ s: toSec(m[1]), e: toSec(m[2]), t: body });
+  }
+  return cues.sort((a, b) => a.s - b.s);
+}
+function renderSubs() {
+  const it = items[cur], el = $("#subs");
+  const track = it && it.subs[it.subIdx];
+  if (!track || !subOn) { el.innerHTML = ""; return; }
+  const t = v.currentTime - subOffset;
+  const active = track.cues.filter(c => t >= c.s && t <= c.e);
+  const html = active.map(c => `<span>${esc(c.t).replace(/&lt;(\/?)(i|b|u)&gt;/g, "<$1$2>")}</span>`).join("<br>");
+  if (el.innerHTML !== html) el.innerHTML = html;
+}
+function addSubsTo(it, name, text) {
+  const cues = parseSubs(text);
+  if (!cues.length) { toast(`No subtitle lines found in ${name}`); return false; }
+  it.subs.push({ name, cues }); it.subIdx = it.subs.length - 1;
+  return true;
+}
+
+/* ---------- Loading files ---------- */
+async function addFiles(fileList, playFirst = true) {
+  const files = [...fileList];
+  const media = files.filter(f => MEDIA.test(f.name) || /^(video|audio)\//.test(f.type)).sort((a, b) => (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name, undefined, { numeric: true }));
+  const subs = files.filter(f => SUBS.test(f.name));
+  if (media.length && items.length && items[0].demo) clearAll(true);
+  const firstNew = items.length;
+  for (const f of media) {
+    items.push({ id: nextId++, file: f, url: URL.createObjectURL(f), name: f.name, size: f.size, audio: AUDIO.test(f.name) || f.type.startsWith("audio/"), key: `${f.name}|${f.size}`, subs: [], subIdx: -1, dur: 0 });
+  }
+  for (const s of subs) {
+    const text = await s.text();
+    const sb = base(s.name).replace(/\.(en|eng|sq|alb|es|de|fr|it|forced|sdh)$/, "");
+    let target = items.find(it => base(it.name) === sb) || items.find(it => sb.startsWith(base(it.name))) || (media.length ? null : items[cur]);
+    if (!target && items.length === 1) target = items[0];
+    if (target) { if (addSubsTo(target, s.name, text)) toast(`Subtitles added to ${target.name}`); }
+    else toast(`No matching video for ${s.name}. Select a video, then use Add subtitles.`);
+  }
+  rebuildOrder(); renderList();
+  if (media.length && (playFirst && (cur < 0 || v.paused))) play(firstNew);
+  else if (subs.length) renderSubs();
+  if (!media.length && !subs.length) toast("Those files aren't media or subtitles this player can open");
+  probeDurations();
+}
+async function probeDurations() {
+  for (const it of items) {
+    if (it.dur || it.probing) continue; it.probing = true;
+    await new Promise(res => { const a = document.createElement(it.audio ? "audio" : "video"); a.preload = "metadata"; const done = () => { it.dur = a.duration || 0; a.removeAttribute("src"); a.load(); res(); }; a.onloadedmetadata = done; a.onerror = done; setTimeout(done, 6000); a.src = it.url; });
+    renderList();
+  }
+}
+
+/* ---------- Playlist ---------- */
+function rebuildOrder() {
+  order = items.map((_, i) => i);
+  if (shuffle) { for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (cur >= 0) { order = [cur, ...order.filter(i => i !== cur)]; } }
+}
+function renderList() {
+  $("#plCount").textContent = `${items.length} item${items.length === 1 ? "" : "s"}`;
+  $("#list").innerHTML = items.length ? items.map((it, i) => {
+    const p = positions[it.key]; const pct = p && it.dur ? Math.min(100, 100 * p.t / it.dur) : (p && p.d ? 100 * p.t / p.d : 0);
+    return `<div class="item${i === cur ? " cur" : ""}" draggable="true" data-i="${i}" tabindex="0" title="${esc(it.name)}">
+      <div class="ico">${i === cur && !v.paused ? "▶" : it.audio ? "♪" : "▣"}</div>
+      <div style="min-width:0"><div class="iname">${esc(it.name)}</div>
+        <div class="imeta"><span>${it.dur ? fmt(it.dur) : "–:––"}</span><span>${it.demo ? "example" : fmtSize(it.size)}</span>${it.subs.length ? `<span class="cc">CC ${it.subs.length}</span>` : ""}${p && pct > 1 && pct < 97 ? `<span>resume ${fmt(p.t)}</span>` : ""}</div></div>
+      <button class="x" data-rm="${i}" aria-label="Remove ${esc(it.name)}">✕</button>
+      ${pct > 1 ? `<div class="ibar"><i style="width:${pct.toFixed(1)}%"></i></div>` : ""}
+    </div>`;
+  }).join("") : `<div class="hint">Your playlist is empty. Open files or a folder, or drop them on the player. Drag items to reorder.</div>`;
+}
+function play(i, keepTime) {
+  if (i < 0 || i >= items.length) return;
+  savePos();
+  cur = i; const it = items[i];
+  v.src = it.url; subOffset = 0;
+  $("#empty").hidden = true;
+  $("#poster").hidden = !it.audio; $("#posterTitle").textContent = it.name.replace(/\.[^.]+$/, ""); $("#posterSub").textContent = it.demo ? "Example track generated in your browser" : "Audio";
+  $("#nowName").textContent = it.name;
+  $("#nowInfo").textContent = `${it.demo ? "example" : fmtSize(it.size)}${it.subs.length ? " · subtitles" : ""}`;
+  document.title = it.name + " · Stage Player";
+  v.addEventListener("loadedmetadata", function once() {
+    v.removeEventListener("loadedmetadata", once);
+    it.dur = v.duration;
+    const p = positions[it.key];
+    if (!keepTime && p && p.t > 10 && p.t < v.duration - 15) {
+      v.currentTime = p.t;
+      toast(`Resumed at ${fmt(p.t)}`, "Start over", () => { v.currentTime = 0; });
+    }
+    renderList();
+  });
+  v.play().catch(() => {});
+  $("#ccB").setAttribute("aria-pressed", subOn && it.subs.length > 0);
+  renderList(); showUI();
+}
+function step(dir, auto) {
+  if (!items.length) return;
+  if (auto && repeat === "one") { v.currentTime = 0; v.play(); return; }
+  let pos = order.indexOf(cur) + dir;
+  if (pos >= order.length) { if (repeat === "all" || !auto) { if (shuffle) rebuildOrder(); pos = 0; } else { return; } }
+  if (pos < 0) pos = order.length - 1;
+  play(order[pos]);
+}
+function clearAll(silent) {
+  savePos(); v.pause(); v.removeAttribute("src"); v.load();
+  items.forEach(it => URL.revokeObjectURL(it.url)); items = []; cur = -1; order = [];
+  $("#empty").hidden = false; $("#poster").hidden = true; $("#subs").innerHTML = "";
+  $("#nowName").textContent = "Nothing loaded"; $("#nowInfo").textContent = ""; document.title = "Stage Player";
+  renderList(); if (!silent) toast("Playlist cleared");
+}
+
+/* ---------- Resume ---------- */
+let lastSave = 0;
+function savePos() {
+  const it = items[cur]; if (!it || !v.duration) return;
+  const t = v.currentTime;
+  if (t > v.duration - 15) delete positions[it.key];
+  else if (t > 10) positions[it.key] = { t: Math.floor(t), d: Math.floor(v.duration), at: Date.now() };
+  const keys = Object.keys(positions); if (keys.length > 300) keys.sort((a, b) => positions[a].at - positions[b].at).slice(0, keys.length - 300).forEach(k => delete positions[k]);
+  store.set("stage.pos", positions);
+}
+window.addEventListener("pagehide", savePos);
+document.addEventListener("visibilitychange", () => { if (document.hidden) savePos(); });
+
+/* ---------- Video events ---------- */
+v.addEventListener("timeupdate", () => {
+  const d = v.duration || 0, t = v.currentTime;
+  $("#prog").style.width = d ? (100 * t / d) + "%" : 0; $("#knob").style.left = d ? (100 * t / d) + "%" : 0;
+  $("#time").textContent = `${fmt(t)} / ${fmt(d)}`;
+  renderSubs();
+  if (Date.now() - lastSave > 5000) { lastSave = Date.now(); savePos(); }
+});
+v.addEventListener("progress", () => { if (v.buffered.length && v.duration) $("#buf").style.width = 100 * v.buffered.end(v.buffered.length - 1) / v.duration + "%"; });
+const PLAY = '<path d="M8 5v14l11-7z"/>', PAUSE = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+v.addEventListener("play", () => { $("#playIco").innerHTML = PAUSE; $("#playB").setAttribute("aria-label", "Pause"); stage.classList.add("playing"); $("#lamp").classList.remove("off"); renderList(); idle(); });
+v.addEventListener("pause", () => { $("#playIco").innerHTML = PLAY; $("#playB").setAttribute("aria-label", "Play"); stage.classList.remove("playing"); $("#lamp").classList.add("off"); savePos(); renderList(); showUI(true); });
+v.addEventListener("ended", () => { const it = items[cur]; if (it) { delete positions[it.key]; store.set("stage.pos", positions); } if (auto || repeat === "one") step(1, true); });
+v.addEventListener("error", () => { const it = items[cur]; if (it) toast(`Your browser can't decode ${it.name}. Try VLC, or convert it to MP4 (H.264/AAC).`); });
+v.addEventListener("volumechange", () => {
+  $("#vol").value = v.muted ? 0 : Math.round(v.volume * 100);
+  $("#volIco").innerHTML = v.muted || v.volume === 0 ? '<path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/>' : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/>';
+  store.set("stage.vol", { v: v.volume, m: v.muted });
+});
+{ const sv = store.get("stage.vol", { v: .9, m: false }); v.volume = sv.v; v.muted = sv.m; }
+
+/* ---------- Controls ---------- */
+function toggle() { if (cur < 0) { if (items.length) play(0); return; } v.paused ? v.play().catch(() => {}) : v.pause(); }
+function seekBy(s) { if (!v.duration) return; v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + s)); flash((s > 0 ? "+" : "−") + Math.abs(s) + " s"); }
+function setVol(x) { v.muted = false; v.volume = Math.max(0, Math.min(1, x)); flash("Volume " + Math.round(v.volume * 100) + "%"); }
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+function setSpeed(dir) { let i = SPEEDS.indexOf(v.playbackRate); if (i < 0) i = 2; i = Math.max(0, Math.min(SPEEDS.length - 1, i + dir)); v.playbackRate = SPEEDS[i]; flash(SPEEDS[i] + "×"); }
+async function fullscreen() {
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else if (stage.requestFullscreen) await stage.requestFullscreen(); else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); }
+  catch { toast("Fullscreen isn't available in this window. Open the player file directly in your browser."); }
+}
+async function pip() {
+  try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await v.requestPictureInPicture(); }
+  catch { toast("Picture in picture isn't available here"); }
+}
+function toggleSubs() {
+  const it = items[cur];
+  if (!it || !it.subs.length) { toast("No subtitles for this item. Use Add subtitles to load an SRT or VTT file."); return; }
+  subOn = !subOn; $("#ccB").setAttribute("aria-pressed", subOn); renderSubs(); flash(subOn ? "Subtitles on" : "Subtitles off");
+}
+$("#playB").onclick = toggle; $("#prevB").onclick = () => (v.currentTime > 3 ? (v.currentTime = 0) : step(-1)); $("#nextB").onclick = () => step(1);
+$("#muteB").onclick = () => { v.muted = !v.muted; };
+$("#vol").oninput = e => { v.muted = false; v.volume = e.target.value / 100; };
+$("#fsB").onclick = fullscreen; $("#pipB").onclick = pip; $("#ccB").onclick = toggleSubs;
+if (!document.pictureInPictureEnabled) $("#pipB").hidden = true;
+v.addEventListener("click", toggle); $("#poster").addEventListener("click", toggle);
+v.addEventListener("dblclick", fullscreen); $("#poster").addEventListener("dblclick", fullscreen);
+
+// Seek bar
+const seekEl = $("#seek");
+function seekPos(e) { const r = seekEl.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); }
+let dragging = false;
+seekEl.addEventListener("pointerdown", e => { if (!v.duration) return; dragging = true; seekEl.setPointerCapture(e.pointerId); v.currentTime = seekPos(e) * v.duration; });
+seekEl.addEventListener("pointermove", e => { const p = seekPos(e), tip = $("#tip"); tip.hidden = !v.duration; tip.style.left = p * 100 + "%"; tip.textContent = fmt(p * v.duration); if (dragging) v.currentTime = p * v.duration; });
+seekEl.addEventListener("pointerup", () => dragging = false);
+seekEl.addEventListener("pointerleave", () => $("#tip").hidden = true);
+
+// Settings menu
+function openMenu() {
+  const m = $("#menu"); if (!m.hidden) { m.hidden = true; return; }
+  const it = items[cur];
+  m.innerHTML = `<h4>Speed</h4>${SPEEDS.map(s => `<button class="opt" role="menuitemradio" aria-checked="${v.playbackRate === s}" data-speed="${s}">${s === 1 ? "Normal" : s + "×"}</button>`).join("")}
+    <h4>Subtitles</h4>
+    <button class="opt" role="menuitemradio" aria-checked="${!subOn || !it || it.subIdx < 0}" data-sub="-1">Off</button>
+    ${it ? it.subs.map((s, i) => `<button class="opt" role="menuitemradio" aria-checked="${subOn && it.subIdx === i}" data-sub="${i}">${esc(s.name)}</button>`).join("") : ""}
+    <button class="opt" data-act="addsub">Load SRT or VTT file…</button>
+    <div class="row">Delay<span id="offv">${subOffset >= 0 ? "+" : ""}${subOffset.toFixed(1)} s</span><span><button data-off="-0.5">−</button> <button data-off="0.5">+</button></span></div>
+    <div class="row">Size<span>${Math.round(subSize * 100)}%</span><span><button data-size="-0.1">A−</button> <button data-size="0.1">A+</button></span></div>`;
+  m.hidden = false;
+}
+$("#setB").onclick = e => { e.stopPropagation(); openMenu(); };
+$("#menu").addEventListener("click", e => {
+  e.stopPropagation();
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.speed) { v.playbackRate = +b.dataset.speed; $("#menu").hidden = true; flash(v.playbackRate + "×"); }
+  else if (b.dataset.sub) { const it = items[cur]; const i = +b.dataset.sub; if (i < 0) subOn = false; else if (it) { it.subIdx = i; subOn = true; } $("#ccB").setAttribute("aria-pressed", subOn && i >= 0); renderSubs(); $("#menu").hidden = true; }
+  else if (b.dataset.off) { subOffset += +b.dataset.off; renderSubs(); $("#menu").hidden = true; openMenu(); }
+  else if (b.dataset.size) { subSize = Math.max(.6, Math.min(2, subSize + +b.dataset.size)); applySubSize(); store.set("stage.subsize", subSize); $("#menu").hidden = true; openMenu(); }
+  else if (b.dataset.act === "addsub") { $("#menu").hidden = true; $("#subIn").click(); }
+});
+document.addEventListener("click", () => $("#menu").hidden = true);
+function applySubSize() { document.documentElement.style.setProperty("--sub-scale", subSize); }
+applySubSize();
+
+// Autohide UI
+let hideT;
+function showUI(stay) { stage.classList.add("show-ui"); stage.classList.remove("idle"); clearTimeout(hideT); if (!stay) idle(); }
+function idle() { clearTimeout(hideT); hideT = setTimeout(() => { if (!v.paused && $("#menu").hidden) { stage.classList.remove("show-ui"); if (document.fullscreenElement) stage.classList.add("idle"); } }, 2500); }
+stage.addEventListener("pointermove", () => showUI());
+stage.addEventListener("pointerleave", () => { if (!v.paused) idle(); });
+showUI(true);
+
+// Flash + toast
+let flT, toT;
+function flash(msg) { const f = $("#flash"); f.textContent = msg; f.hidden = false; clearTimeout(flT); flT = setTimeout(() => f.hidden = true, 700); }
+function toast(msg, action, fn) {
+  const t = $("#toast"); t.innerHTML = `<span>${esc(msg)}</span>${action ? `<button>${esc(action)}</button>` : ""}`; t.hidden = false;
+  if (action) t.querySelector("button").onclick = e => { e.stopPropagation(); fn(); t.hidden = true; };
+  clearTimeout(toT); toT = setTimeout(() => t.hidden = true, action ? 6000 : 3200);
+}
+
+/* ---------- Playlist interactions ---------- */
+const list = $("#list"); let dragFrom = -1;
+list.addEventListener("click", e => {
+  const rm = e.target.closest("[data-rm]");
+  if (rm) { e.stopPropagation(); const i = +rm.dataset.rm; const was = i === cur; URL.revokeObjectURL(items[i].url); items.splice(i, 1);
+    if (was) { v.pause(); v.removeAttribute("src"); v.load(); cur = -1; if (items.length) play(Math.min(i, items.length - 1)); else clearAll(true); }
+    else if (i < cur) cur--; rebuildOrder(); renderList(); return; }
+  const row = e.target.closest(".item"); if (row) { const i = +row.dataset.i; i === cur ? toggle() : play(i); }
+});
+list.addEventListener("keydown", e => { const row = e.target.closest(".item"); if (row && e.key === "Enter") play(+row.dataset.i); if (row && (e.key === "Delete" || e.key === "Backspace")) row.querySelector(".x").click(); });
+list.addEventListener("dragstart", e => { const row = e.target.closest(".item"); if (!row) return; dragFrom = +row.dataset.i; row.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", "reorder"); });
+list.addEventListener("dragover", e => { if (dragFrom < 0) return; e.preventDefault(); e.stopPropagation(); list.querySelectorAll(".over").forEach(x => x.classList.remove("over")); e.target.closest(".item")?.classList.add("over"); });
+list.addEventListener("drop", e => {
+  if (dragFrom < 0) return; e.preventDefault(); e.stopPropagation();
+  const row = e.target.closest(".item"); let to = row ? +row.dataset.i : items.length - 1;
+  const curItem = items[cur]; const [m] = items.splice(dragFrom, 1); items.splice(to, 0, m);
+  cur = items.indexOf(curItem); dragFrom = -1; rebuildOrder(); renderList();
+});
+list.addEventListener("dragend", () => { dragFrom = -1; renderList(); });
+
+function setPills() {
+  $("#autoB").setAttribute("aria-pressed", auto); $("#shufB").setAttribute("aria-pressed", shuffle);
+  $("#repB").setAttribute("aria-pressed", repeat !== "off"); $("#repB").textContent = "Repeat: " + { off: "off", all: "all", one: "one" }[repeat];
+}
+$("#autoB").onclick = () => { auto = !auto; store.set("stage.auto", auto); setPills(); };
+$("#shufB").onclick = () => { shuffle = !shuffle; store.set("stage.shuffle", shuffle); rebuildOrder(); setPills(); };
+$("#repB").onclick = () => { repeat = { off: "all", all: "one", one: "off" }[repeat]; store.set("stage.repeat", repeat); setPills(); };
+$("#clearB").onclick = () => clearAll();
+setPills();
+
+/* ---------- Opening files ---------- */
+$("#openBtn").onclick = () => $("#fileIn").click();
+$("#folderBtn").onclick = () => $("#dirIn").click();
+$("#subBtn").onclick = () => { if (cur < 0) { toast("Play a video first, then add its subtitles"); return; } $("#subIn").click(); };
+$("#fileIn").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+$("#dirIn").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+$("#subIn").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f || cur < 0) return; if (addSubsTo(items[cur], f.name, await f.text())) { subOn = true; $("#ccB").setAttribute("aria-pressed", true); toast(`Subtitles loaded: ${f.name}`); renderList(); renderSubs(); } };
+document.addEventListener("click", e => { if (e.target.closest("[data-act='open']")) $("#fileIn").click(); });
+const app = $("#app");
+app.addEventListener("dragover", e => { if (dragFrom >= 0) return; e.preventDefault(); app.classList.add("drop"); });
+app.addEventListener("dragleave", e => { if (e.target === app || !app.contains(e.relatedTarget)) app.classList.remove("drop"); });
+app.addEventListener("drop", e => { if (dragFrom >= 0) return; e.preventDefault(); app.classList.remove("drop"); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+
+/* ---------- Keyboard ---------- */
+document.addEventListener("keydown", e => {
+  if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+  const map = {
+    " ": toggle, k: toggle, K: toggle,
+    ArrowRight: () => seekBy(5), ArrowLeft: () => seekBy(-5), l: () => seekBy(10), L: () => seekBy(10), j: () => seekBy(-10), J: () => seekBy(-10),
+    ArrowUp: () => setVol(v.volume + .05), ArrowDown: () => setVol(v.volume - .05),
+    f: fullscreen, F: fullscreen, m: () => { v.muted = !v.muted; flash(v.muted ? "Muted" : "Sound on"); }, M: () => { v.muted = !v.muted; },
+    c: toggleSubs, C: toggleSubs, n: () => step(1), N: () => step(1), p: () => step(-1), P: () => step(-1),
+    ">": () => setSpeed(1), "<": () => setSpeed(-1), ".": () => setSpeed(1), ",": () => setSpeed(-1),
+    Escape: () => { $("#menu").hidden = true; }
+  };
+  if (/^[0-9]$/.test(k) && v.duration) { e.preventDefault(); v.currentTime = v.duration * (+k / 10); flash(k + "0%"); showUI(); return; }
+  if (map[k]) { if (k === " " && e.target.tagName === "BUTTON") return; e.preventDefault(); map[k](); showUI(); }
+});
+document.addEventListener("fullscreenchange", () => { $("#fsB").setAttribute("aria-pressed", !!document.fullscreenElement); showUI(); });
+
+/* ---------- Example item so the player opens in a working state ---------- */
+function demoWav(seconds) {
+  const sr = 22050, n = sr * seconds, d = new Int16Array(n), notes = [57, 60, 64, 67, 69, 67, 64, 60];
+  for (let i = 0; i < n; i++) {
+    const t = i / sr, beat = t * 2, s = Math.floor(beat), tin = beat - s;
+    const f = 440 * Math.pow(2, (notes[s % 8] - 69) / 12), bass = 440 * Math.pow(2, (notes[(Math.floor(s / 4) * 4) % 8] - 81) / 12);
+    let x = .25 * Math.exp(-tin * 4) * Math.sin(2 * Math.PI * f * t) + .2 * Math.sin(2 * Math.PI * bass * t);
+    x *= Math.min(1, t / 1, (seconds - t) / 2);
+    d[i] = x * 26000;
+  }
+  const buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf), w = (o, s) => [...s].forEach((c, i) => dv.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); dv.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, "data"); dv.setUint32(40, n * 2, true);
+  new Int16Array(buf, 44).set(d);
+  return new Blob([buf], { type: "audio/wav" });
+}
+const DEMO_SRT = `1
+00:00:01,000 --> 00:00:05,000
+This is an example track made in your browser.
+
+2
+00:00:05,500 --> 00:00:10,000
+These lines come from an SRT subtitle file.
+Press C to hide them, or open ⚙ to change delay and size.
+
+3
+00:00:10,500 --> 00:00:16,000
+Pause, reload the page and reopen a file:
+<i>it resumes where you stopped.</i>
+
+4
+00:00:16,500 --> 00:00:24,000
+Drop your own videos, music and .srt files anywhere to start.`;
+(function seed() {
+  const blob = demoWav(26);
+  items.push({ id: nextId++, demo: true, file: null, url: URL.createObjectURL(blob), name: "Example – Stage test tone.wav", size: blob.size, audio: true, key: "demo", subs: [], subIdx: -1, dur: 26 });
+  addSubsTo(items[0], "Example subtitles.srt", DEMO_SRT);
+  rebuildOrder(); renderList();
+  cur = 0; v.src = items[0].url; $("#empty").hidden = true; $("#poster").hidden = false;
+  $("#posterTitle").textContent = "Example – Stage test tone"; $("#posterSub").textContent = "Example track generated in your browser · press Play";
+  $("#nowName").textContent = items[0].name; $("#nowInfo").textContent = "example · subtitles";
+  $("#ccB").setAttribute("aria-pressed", true);
+  $("#subs").innerHTML = "<span>Press play to see subtitles here.</span>";
+})();
+})();
+</script>
+</body>
+</html>
